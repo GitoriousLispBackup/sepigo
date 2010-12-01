@@ -37,7 +37,8 @@
 
 (defun reset ()
   (if hunchentoot:*session*
-      (hunchentoot:remove-session hunchentoot:*session*)))
+      (hunchentoot:remove-session hunchentoot:*session*))
+  (hunchentoot:redirect "/sepigo/sepigo.html"))
 
 (defun start (port)
   (setf *acceptor* (make-instance 'hunchentoot:acceptor :port port))
@@ -53,9 +54,9 @@
   (setf hunchentoot:*session-removal-hook*
         (lambda (session)
           (if session
-              (issue-gtp-command session
-                                 (make-gtp-command session "quit"))
-              )))
+              (issue-gtp-command
+               (hunchentoot:session-value :gtp-session session)
+               (make-gtp-command (hunchentoot:session-value :gtp-session session) "quit")))))
   (push (hunchentoot:create-folder-dispatcher-and-handler "/sepigo/" #p"web/")
         hunchentoot:*dispatch-table*))
 
