@@ -13,7 +13,11 @@
    (id 
     :initarg :id
     :accessor id
-    :initform 0)))
+    :initform 0))
+  (:documentation
+   "Handles the state of a gtp session: the input and output streams
+   to the child process, a key that associates a gtp session with a
+   web session and the current request/response id"))
 
 (defun make-gtp-session ()
   (multiple-value-bind (in out)
@@ -49,10 +53,7 @@
                " "
                (command-name command)
                " "
-               (arguments command)
-               ;; (apply 'concatenate (cons 'string (mapcar 'princ-to-string (arguments command))))
-               ;; (list #\Newline)
-               ))
+               (arguments command)))
   
 (defclass gtp-response ()
   ((id
@@ -131,15 +132,6 @@
                             (("black" "b") :b)
                             (t :b))
                    :vertex (make-gtp-vertex-from-string (format nil "~{~a~^ ~}" (rest tokens))))))
-
-
-;; (defmethod successp ((response gtp-response))
-;;   (if (eq (status response) 'success)
-;;       t))
-
-;; (defmethod errorp ((response gtp-response))
-;;   (not (successp response)))
-
 
 (defun open-gtp-stream ()
   (let* ((process (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil))

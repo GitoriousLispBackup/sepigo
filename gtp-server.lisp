@@ -1,21 +1,15 @@
 (in-package gtp)
 
+(defparameter *acceptor* nil)
+
 (hunchentoot:define-easy-handler (handle-command :uri "/go") (command-name args)
   (setf (hunchentoot:content-type*) "text/plain")
 
-  (unless (gethash (hunchentoot:session-value :key) *game-hash*)
-    (let ((gtp-session (make-gtp-session))
-          (gtp-session-key (random 100000000)))
-      (setf (hunchentoot:session-value :key)
-            gtp-session-key)
-      (setf (key gtp-session)
-            gtp-session-key)
-      ;; Create a new gtp session (spawns a process) and save it to the
-      ;; game hash
-      (setf (gethash (hunchentoot:session-value :key) *game-hash*)
-            gtp-session)))
+  (unless (hunchentoot:session-value :gtp-session)
+    (setf (hunchentoot:session-value :gtp-session)
+          (make-gtp-session)))
 
-  (let* ((session (gethash (hunchentoot::session-value :key) *game-hash*))
+  (let* ((session (hunchentoot::session-value :gtp-session))
          (command (make-gtp-command session command-name args))
          (response (issue-gtp-command session command)))
     (json:encode-json-to-string response)))
@@ -23,10 +17,27 @@
 (hunchentoot:define-easy-handler (reset-session :uri "/reset") ()
   (reset))
 
+(hunchentoot:define-easy-handler (stats :uri "/stats") ()
+  (setf (hunchentoot:content-type*) "text/html")
+  (cl-who:with-html-output-to-string (stream nil :prologue t :indent t)
+    (:html
+     (:head (:title "stats"))
+     (:body
+      (:table 
+       (:thead
+        (:tr (:td "Useragent") (:td "IP-Address") (:td "ID")))
+       (:tbody
+        (mapc #'(lambda (l)
+                  (cl-who:htm
+                   (:tr
+                    (:td (cl-who:esc (hunchentoot:session-user-agent (cdr l))))
+                    (:td (cl-who:esc (hunchentoot:session-remote-addr (cdr l))))
+                    (:td (cl-who:esc (write-to-string (id (hunchentoot:session-value :gtp-session (cdr l)))))))))
+              (hunchentoot:session-db *acceptor*))))))))
+
 (defun reset ()
-  (maphash #'(lambda (key session) (issue-gtp-command session (make-gtp-command session "quit"))) *game-hash*)
-  (clrhash *game-hash*)
-  (hunchentoot:reset-sessions))  
+  (if hunchentoot:*session*
+      (hunchentoot:remove-session hunchentoot:*session*)))
 
 (defun start (port)
   (setf *acceptor* (make-instance 'hunchentoot:acceptor :port port))
@@ -36,12 +47,18 @@
   (reset)
   (hunchentoot:stop *acceptor*))
 
-(defun toplevel ()
-  (defparameter *game-hash*
-    (make-hash-table))
-  (defparameter *acceptor* nil)
+(defun init ()
   (setf hunchentoot:*show-lisp-errors-p* t)
+  (setf hunchentoot:*session-removal-hook*
+        (lambda (session)
+          (if session
+              (issue-gtp-command session
+                                 (make-gtp-command session "quit"))
+              )))
   (push (hunchentoot:create-folder-dispatcher-and-handler "/sepigo/" #p"web/")
-        hunchentoot:*dispatch-table*)
+        hunchentoot:*dispatch-table*))
+
+
+(defun toplevel ()
   (start 8080)
   (sb-thread:join-thread (first (sb-thread:list-all-threads))))
