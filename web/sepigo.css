@@ -1,0 +1,69 @@
+body {
+    background-color: #8AB;
+}
+
+#goban {
+    border-collapse: collapse;
+}
+
+#goban td {
+    border: none;
+    padding: 0;
+    margin: -3;
+    height: 64px;
+}
+
+#goban img {
+    border: 0;
+    padding: 0;
+    margin: 0;   
+}
+
+#goban div {
+    width: 64px;
+    height: 64px;
+}
+
+.top-left {
+    background-image: url("images/top-left.png");
+}
+
+.top-right {
+    background-image: url("images/top-right.png");
+}
+
+.bottom-left {
+    background-image: url("images/bottom-left.png");
+}
+
+.bottom-right {
+    background-image: url("images/bottom-right.png");
+}
+
+.top {
+    background-image: url("images/top.png");
+}
+
+.bottom {
+    background-image: url("images/bottom.png");
+}
+
+.left {
+    background-image: url("images/left.png");
+}
+
+.right {
+    background-image: url("images/right.png");
+}
+
+.center {
+    background-image: url("images/center.png");
+}
+
+.b {
+    background-image: url("images/b.png");
+}
+
+.w {
+    background-image: url("images/w.png");
+}
