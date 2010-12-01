@@ -48,7 +48,8 @@
   (hunchentoot:stop *acceptor*))
 
 (defun init ()
-  (setf hunchentoot:*show-lisp-errors-p* t)
+  (setf hunchentoot:*show-lisp-errors-p* t
+        hunchentoot:*catch-errors-p* nil)
   (setf hunchentoot:*session-removal-hook*
         (lambda (session)
           (if session

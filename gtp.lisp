@@ -114,7 +114,7 @@
    (vertex
     :initarg :vertex
     :accessor vertex
-    :type 'vertex)))
+    :type gtp-vertex)))
 
 (defmethod ->string ((move gtp-move))
   (concatenate 'string
@@ -150,6 +150,6 @@
              collecting line))
          (response
           (make-gtp-response-from-string session (format nil "~{~a~^~%~}" returned-lines))))
-    (unless (eql (id session) (id response))
-      (error "Request and response ids not the same"))
+    ;; (unless (eql (id session) (id response))
+    ;;   (error "Request and response ids not the same"))
     response))
