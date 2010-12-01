@@ -1,3 +1,33 @@
+function erase(array, element, pred) {
+    return array.filter(function(el) {
+        return vertex_equal(el, element);
+    });
+}
+
+function vertex_equal(a, b) {
+    return a[0] === b[0] && a[1] === b[1];
+}
+
+function contains(array, el, pred) {
+    for (var i = 0; i < array.length; ++i) {
+        if (pred(array[i], el)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function diff_array(a, b) {
+    return a.filter(function(el) {
+        return !contains(b, el, vertex_equal);
+    });
+}
+
+function vertex_diff(current_set, new_set) {
+    return {'+': diff_array(new_set, current_set),
+            '-': diff_array(current_set, new_set)};
+}
+
 function char_to_int(c) {
     var c_code = c.toLowerCase().charCodeAt(0);
     var a_code = 'a'.charCodeAt(0);
@@ -19,8 +49,8 @@ function int_to_char(i) {
 }
 
 function vertex_to_coords(vertex) {
-    var col = parseInt(vertex.slice(1));
     var row = char_to_int(vertex[0]);
+    var col = parseInt(vertex.slice(1));
     return [row, col];
 }
 
@@ -36,6 +66,7 @@ var Goban = new Class({
     initialize: function(el, size) {
         this.el = el;
         this.size = size;
+        this.stones = {'w': [], 'b': []};
 
         // register click callback
         set_stone = (function (ev) {
@@ -96,6 +127,7 @@ var Goban = new Class({
     },
 
     remove_stone: function(row, col) {
+        console.log("remove ", row, col);
         var td = $('cell-'+row+'-'+col);
         td.setProperty('class', 'transparent');
     },
@@ -117,6 +149,49 @@ var Goban = new Class({
                 this.remove_stone(row, col);
             }
         }
+    },
+
+    update: function(color) {
+        var json_request = new Request.JSON({
+            url: '../go',
+            onSuccess: (function(response_json) {
+                // console.log("response ", response_json);
+                if (response_json.success && response_json.data[0] !== '') {
+                    var new_coords = response_json.data.map(function(vertex) {
+                        return vertex_to_coords(vertex);
+                    });
+                    // What stones were removed or added?
+                    var diffobj = vertex_diff(this.stones[color], new_coords);
+                    console.log(diffobj);
+                    // Update board accordingly
+                    diffobj['+'].each(function(added) {
+                        this.stones[color].push(added);
+                        this.put_stone(color, added[0]-1, added[1]-1);
+                    }, this);
+                    diffobj['-'].each(function(removed) {
+                        console.log(removed);
+                        erase(this.stones[color], removed, vertex_equal);
+                        var coords = [removed[0]-1, removed[1]-1];
+                        console.log(color, coords[0], coords[1]);
+                        this.remove_stone(color,
+                                          coords[0],
+                                          coords[1]);
+                    }, this);
+                } else {
+                    console.log("Error while listing stones");
+                }
+            }).bind(this),
+            onFailure: function(xhr) {
+                console.log(xhr.status, xhr.statusText, xhr.responseText);
+            },
+            onException: function() {
+                console.log(exception);                
+            }
+        });
+        json_request.get({
+            'command-name': 'list_stones',
+            'args': color
+        });
     }
 });
 
@@ -131,6 +206,7 @@ var Game = new Class({
         this.handicap = handicap;
         this.human_color = human_color;
 
+        // Black always starts
         this.current_player = 'b';
 
         // this.init_handicap(handicap); TODO
@@ -147,6 +223,7 @@ var Game = new Class({
             // To gnugo coords
             ++row;
             ++col;
+
             if (this.human_color == this.current_player) {
                 var json_request = new Request.JSON({
                     url: '../go',
@@ -173,33 +250,6 @@ var Game = new Class({
         }).bind(this));
     },
 
-    update_goban: function(color) {
-        var json_request = new Request.JSON({
-            url: '../go',
-            onSuccess: (function(response_json) {
-                console.log("response ", response_json);
-                if (response_json.success && response_json.data[0] !== '') {
-                    response_json.data.each(function(vertex) {
-                        var coords = vertex_to_coords(vertex);
-                        this.goban.put_stone(color, coords[0]-1, coords[1]-1);
-                    }, this);
-                } else {
-                    console.log("Error while listing stones");
-                }
-            }).bind(this),
-            onFailure: function(xhr) {
-                console.log(xhr.status, xhr.statusText, xhr.responseText);
-            },
-            onException: function() {
-                console.log(exception);                
-            }
-        });
-        json_request.get({
-            'command-name': 'list_stones',
-            'args': color
-        });
-    },
-
     next_player: function() {
         this.current_player = this.current_player == 'w' ? 'b': 'w';
     },
@@ -210,9 +260,9 @@ var Game = new Class({
 
     computer_turn: function() {
         gtp_request({'command-name': 'genmove', 'args': this.current_player}, function (json) {
-            console.log(json);
-            this.update_goban('b');
-            this.update_goban('w');
+            var coord = vertex_to_coords(json.data[0])
+            this.goban.update('b');
+            this.goban.update('w');
             this.next_player();
         }, this);
     }
@@ -222,7 +272,6 @@ function init() {
     var goban = new Goban($('goban'), 9);
     var game = new Game(goban, 0, 4.5, 0, 'w');
     game.addEvent('finishTurn', function(row, col) {
-        game.goban.clear();
         game.next_player();
         game.computer_turn();
     });
