@@ -1,33 +1,3 @@
-function erase(array, element, pred) {
-    return array.filter(function(el) {
-        return vertex_equal(el, element);
-    });
-}
-
-function vertex_equal(a, b) {
-    return a[0] === b[0] && a[1] === b[1];
-}
-
-function contains(array, el, pred) {
-    for (var i = 0; i < array.length; ++i) {
-        if (pred(array[i], el)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function diff_array(a, b) {
-    return a.filter(function(el) {
-        return !contains(b, el, vertex_equal);
-    });
-}
-
-function vertex_diff(current_set, new_set) {
-    return {'+': diff_array(new_set, current_set),
-            '-': diff_array(current_set, new_set)};
-}
-
 function char_to_int(c) {
     var c_code = c.toLowerCase().charCodeAt(0);
     var a_code = 'a'.charCodeAt(0);
@@ -52,6 +22,17 @@ function vertex_to_coords(vertex) {
     var row = char_to_int(vertex[0]);
     var col = parseInt(vertex.slice(1));
     return [row, col];
+}
+
+function map_vertices_to_coords(vertices) {
+    // FIXXXX
+    if (!vertices) {
+        return [];
+    }
+
+    return vertices.map(function(vertex) {
+        return vertex_to_coords(vertex);
+    });
 }
 
 function gtp_request(req, cb, t) {
@@ -127,7 +108,6 @@ var Goban = new Class({
     },
 
     remove_stone: function(row, col) {
-        console.log("remove ", row, col);
         var td = $('cell-'+row+'-'+col);
         td.setProperty('class', 'transparent');
     },
@@ -151,47 +131,10 @@ var Goban = new Class({
         }
     },
 
-    update: function(color) {
-        var json_request = new Request.JSON({
-            url: '../go',
-            onSuccess: (function(response_json) {
-                // console.log("response ", response_json);
-                if (response_json.success && response_json.data[0] !== '') {
-                    var new_coords = response_json.data.map(function(vertex) {
-                        return vertex_to_coords(vertex);
-                    });
-                    // What stones were removed or added?
-                    var diffobj = vertex_diff(this.stones[color], new_coords);
-                    console.log(diffobj);
-                    // Update board accordingly
-                    diffobj['+'].each(function(added) {
-                        this.stones[color].push(added);
-                        this.put_stone(color, added[0]-1, added[1]-1);
-                    }, this);
-                    diffobj['-'].each(function(removed) {
-                        console.log(removed);
-                        erase(this.stones[color], removed, vertex_equal);
-                        var coords = [removed[0]-1, removed[1]-1];
-                        console.log(color, coords[0], coords[1]);
-                        this.remove_stone(color,
-                                          coords[0],
-                                          coords[1]);
-                    }, this);
-                } else {
-                    console.log("Error while listing stones");
-                }
-            }).bind(this),
-            onFailure: function(xhr) {
-                console.log(xhr.status, xhr.statusText, xhr.responseText);
-            },
-            onException: function() {
-                console.log(exception);                
-            }
-        });
-        json_request.get({
-            'command-name': 'list_stones',
-            'args': color
-        });
+    update: function(color, stones) {
+        stones.each(function (stone) {
+            this.put_stone(color, stone[0]-1, stone[1]-1);
+        }, this);
     }
 });
 
@@ -205,14 +148,20 @@ var Game = new Class({
         this.komi = komi;
         this.handicap = handicap;
         this.human_color = human_color;
+        this.click_locked = true;
 
         // Black always starts
         this.current_player = 'b';
+
+        if (this.human_color === this.current_player) {
+            this.click_locked = false;
+        }
 
         // this.init_handicap(handicap); TODO
 
         gtp_request({'command-name': 'boardsize', 'args': this.size}, function (json) {
             gtp_request({'command-name': 'clear_board'}, function (json) {
+                console.log("cleared board");
                 if (this.human_color === 'w') {
                     this.computer_turn();
                 }
@@ -224,29 +173,56 @@ var Game = new Class({
             ++row;
             ++col;
 
-            if (this.human_color == this.current_player) {
-                var json_request = new Request.JSON({
-                    url: '../go',
-                    onSuccess: (function(response_json) {
-                        if (response_json.success) {
-                            this.fireEvent('finishTurn', [row, col]);
-                        } else {
-                            this.fireEvent('invalidTurn', [row, col]);
-                        }
-                    }).bind(this),
-                    onFailure: function(xhr) {
-                        console.log(xhr.status, xhr.statusText, xhr.responseText);
-                    },
-                    onException: function() {
-                        alert("ex");
-                    }
-                });
-                var row_char = int_to_char(row);
-                json_request.get({
-                    'command-name': 'play',
-                    'args': this.current_player + ' ' + row_char + '' + col
-                });
+            console.log("click event at: ", [row, col]);
+
+            if (this.click_locked) {
+                console.log("click locked");
+                return;
             }
+            // Prevent user from issuing more ajax requests
+            this.click_locked = true;
+
+            var json_request = new Request.JSON({
+                url: '../go',
+                onSuccess: (function(response_json) {
+                    // Setting stone was successful procede
+                    if (response_json[0].success) {
+                        var opponent_turn = 
+                            vertex_to_coords(response_json[1].data[0]);
+                        console.log("opponent played: ", opponent_turn);
+
+                        this.goban.clear();
+                        this.goban.update("b", map_vertices_to_coords(response_json[2].data));
+                        this.goban.update("w", map_vertices_to_coords(response_json[3].data));
+                    } else {
+                        this.fireEvent("invalidTurn", row, col);
+                    }
+                    this.click_locked = false;
+                }).bind(this),
+                onFailure: function(xhr) {
+                    console.log(xhr.status, xhr.statusText, xhr.responseText);
+                },
+                onException: function() {
+                    alert("ex");
+                }
+            });
+            var row_char = int_to_char(row);
+            json_request.get({'command-list': JSON.encode([{
+                'command-name': 'play',
+                'args': this.current_player + ' ' + row_char + '' + col
+            },
+            {
+                'command-name': 'genmove',
+                'args': this.other_player()
+            },
+            {
+                'command-name': 'list_stones',
+                'args': this.current_player
+            },
+            {
+                'command-name': 'list_stones',
+                'args': this.other_player()
+            }])});
         }).bind(this));
     },
 
@@ -259,22 +235,43 @@ var Game = new Class({
     },
 
     computer_turn: function() {
-        gtp_request({'command-name': 'genmove', 'args': this.current_player}, function (json) {
-            var coord = vertex_to_coords(json.data[0])
-            this.goban.update('b');
-            this.goban.update('w');
-            this.next_player();
-        }, this);
+        new Request.JSON({
+            url: '../go',
+            onSuccess: (function(response_json) {
+                console.log(response_json);
+                var opponent_turn = 
+                    vertex_to_coords(response_json[0].data[0]);
+                console.log("opponent played: ", opponent_turn);
+
+                this.goban.clear();
+                if (response_json[1])
+                    this.goban.update("b", map_vertices_to_coords(response_json[1].data));
+                if (response_json[2])
+                    this.goban.update("w", map_vertices_to_coords(response_json[2].data));
+                this.click_locked = false;
+            }).bind(this),
+            onFailure: function(xhr) {
+                console.log(xhr.status, xhr.statusText, xhr.responseText);
+            },
+        }).get({'command-list': JSON.encode([{
+                'command-name': 'genmove',
+                'args': this.other_player()
+            },
+            {
+                'command-name': 'list_stones',
+                'args': this.current_player
+            },
+            {
+                'command-name': 'list_stones',
+                'args': this.other_player()
+        }])});
     }
 });
 
 function init() {
     var goban = new Goban($('goban'), 9);
     var game = new Game(goban, 0, 4.5, 0, 'w');
-    game.addEvent('finishTurn', function(row, col) {
-        game.next_player();
-        game.computer_turn();
-    });
+
     game.addEvent('invalidTurn', function(row, col) {
         console.log("Invalid turn: %o", [row, col]);
     }, this);

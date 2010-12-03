@@ -47,6 +47,13 @@
                         :arguments arguments)))
     command))
 
+(defmethod make-gtp-command-list ((session gtp-session) command-list)
+  (mapcar #'(lambda (command)
+              (make-gtp-command session
+                                (cdr (assoc :command-name command))
+                                (cdr (assoc :args command))))
+          command-list))
+
 (defmethod ->string ((command gtp-command))
   (concatenate 'string
                (write-to-string (id command))
@@ -75,7 +82,7 @@
     response))
 
 (defmethod make-gtp-response-from-string ((session gtp-session) string)
-  (let* ((tokens (cl-utilities:split-sequence #\Space string))
+  (let* ((tokens (cl-utilities:split-sequence #\Space string :remove-empty-subseqs t))
          (token0 (first tokens))
          (success (cond ((eql (char token0 0) #\=)
                          t)
@@ -148,8 +155,16 @@
           (loop for line = (read-line (out-stream session) nil 'eof)
              until (or (equal line "") (eql line 'eof))
              collecting line))
+         (lines-in-one-str (format nil "~{~a~^~%~}" returned-lines))
          (response
-          (make-gtp-response-from-string session (format nil "~{~a~^~%~}" returned-lines))))
+          (make-gtp-response-from-string session
+                                         lines-in-one-str)))
     ;; (unless (eql (id session) (id response))
     ;;   (error "Request and response ids not the same"))
     response))
+
+(defmethod issue-gtp-command ((session gtp-session) (command-list list))
+  (mapcar #'(lambda (command)
+              (issue-gtp-command session
+                                 command))
+          command-list))
