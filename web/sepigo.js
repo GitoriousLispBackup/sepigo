@@ -139,30 +139,39 @@ var Goban = new Class({
 });
 
 var Game = new Class({
-    Implements: [Events, Chain],
+    Implements: [Events, Options, Chain, Model],
 
-    initialize: function(goban, difficulty, komi, handicap, human_color) {
+    options: {
+        size: 9,
+        difficulty: 0,
+        komi: 4.5,
+        handicap: 0,
+        human_color: 'b',
+        current_player: 'b',
+    },
+
+    initialize: function(goban, options) {
         this.goban = goban;
-        this.size = this.goban.size
-        this.difficulty = difficulty;
-        this.komi = komi;
-        this.handicap = handicap;
-        this.human_color = human_color;
+
+        this.setOptions(options);
+        this.options.size = this.goban.size
+
+        // this.human_color = human_color;
         this.click_locked = true;
 
         // Black always starts
-        this.current_player = 'b';
+        this.options.current_player = 'b';
 
-        if (this.human_color === this.current_player) {
+        if (this.options.human_color === this.options.current_player) {
             this.click_locked = false;
         }
 
         // this.init_handicap(handicap); TODO
 
-        gtp_request({'command-name': 'boardsize', 'args': this.size}, function (json) {
+        gtp_request({'command-name': 'boardsize', 'args': this.options.size}, function (json) {
             gtp_request({'command-name': 'clear_board'}, function (json) {
                 console.log("cleared board");
-                if (this.human_color === 'w') {
+                if (this.options.human_color === 'w') {
                     this.computer_turn();
                 }
             }, this);
@@ -209,7 +218,7 @@ var Game = new Class({
             var row_char = int_to_char(row);
             json_request.get({'command-list': JSON.encode([{
                 'command-name': 'play',
-                'args': this.current_player + ' ' + row_char + '' + col
+                'args': this.options.current_player + ' ' + row_char + '' + col
             },
             {
                 'command-name': 'genmove',
@@ -217,7 +226,7 @@ var Game = new Class({
             },
             {
                 'command-name': 'list_stones',
-                'args': this.current_player
+                'args': this.options.current_player
             },
             {
                 'command-name': 'list_stones',
@@ -227,11 +236,11 @@ var Game = new Class({
     },
 
     next_player: function() {
-        this.current_player = this.current_player == 'w' ? 'b': 'w';
+        this.options.current_player = this.options.current_player == 'w' ? 'b': 'w';
     },
 
     other_player: function() {
-        return this.current_player == 'w' ? 'b': 'w';
+        return this.options.current_player == 'w' ? 'b': 'w';
     },
 
     computer_turn: function() {
@@ -259,7 +268,7 @@ var Game = new Class({
             },
             {
                 'command-name': 'list_stones',
-                'args': this.current_player
+                'args': this.options.current_player
             },
             {
                 'command-name': 'list_stones',
@@ -270,11 +279,22 @@ var Game = new Class({
 
 function init() {
     var goban = new Goban($('goban'), 9);
-    var game = new Game(goban, 0, 4.5, 0, 'w');
+    var game = new Game(goban);
 
     game.addEvent('invalidTurn', function(row, col) {
         console.log("Invalid turn: %o", [row, col]);
     }, this);
+
+    var game_inspector = new ObjectInspector(game, {
+        id: 'game-inspector',
+        items: [
+            {
+                id: 'current_player',
+                title: 'Your color',
+                description: 'Your fucking color',
+            }
+        ]
+    });
 }
 
 window.addEvent('domready', init);
