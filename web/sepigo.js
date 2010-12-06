@@ -142,12 +142,14 @@ var Game = new Class({
     Implements: [Events, Options, Chain, Model],
 
     options: {
-        size: 9,
-        difficulty: 0,
-        komi: 4.5,
         handicap: 0,
-        human_color: 'b',
         current_player: 'b',
+        human_color: 'b',
+        komi: 4.5,
+        difficulty: 0,
+        size: 9,
+        captured_b: 0,
+        captured_w: 0,
     },
 
     initialize: function(goban, options) {
@@ -156,17 +158,23 @@ var Game = new Class({
         this.setOptions(options);
         this.options.size = this.goban.size
 
-        // this.human_color = human_color;
+        this.set('handicap', 0);
+        this.set('current_player', 'b');
+        this.set('human_color', 'b');
+        this.set('komi', 4.5);
+        this.set('difficulty', 0);
+        this.set('size', 9);
+        this.set('captured_w', 0);
+        this.set('captured_b', 0);
+        
         this.click_locked = true;
 
         // Black always starts
-        this.options.current_player = 'b';
+        this.set('current_player', 'b');
 
         if (this.options.human_color === this.options.current_player) {
-            this.click_locked = false;
+            this.unlock();
         }
-
-        // this.init_handicap(handicap); TODO
 
         gtp_request({'command-name': 'boardsize', 'args': this.options.size}, function (json) {
             gtp_request({'command-name': 'clear_board'}, function (json) {
@@ -189,7 +197,7 @@ var Game = new Class({
                 return;
             }
             // Prevent user from issuing more ajax requests
-            this.click_locked = true;
+            this.lock();
 
             var json_request = new Request.JSON({
                 url: '../go',
@@ -203,10 +211,14 @@ var Game = new Class({
                         this.goban.clear();
                         this.goban.update("b", map_vertices_to_coords(response_json[2].data));
                         this.goban.update("w", map_vertices_to_coords(response_json[3].data));
+
+                        this.set('captured_'+this.options.current_player, response_json[4].data[0]);
+                        this.set('captured_'+this.other_player(), response_json[5].data[0]);
                     } else {
                         this.fireEvent("invalidTurn", row, col);
                     }
-                    this.click_locked = false;
+
+                    this.unlock();
                 }).bind(this),
                 onFailure: function(xhr) {
                     console.log(xhr.status, xhr.statusText, xhr.responseText);
@@ -231,7 +243,16 @@ var Game = new Class({
             {
                 'command-name': 'list_stones',
                 'args': this.other_player()
-            }])});
+            },
+            {
+                'command-name': 'captures',
+                'args': this.options.current_player
+            },
+            {
+                'command-name': 'captures',
+                'args': this.other_player()
+            }
+])});
         }).bind(this));
     },
 
@@ -241,6 +262,16 @@ var Game = new Class({
 
     other_player: function() {
         return this.options.current_player == 'w' ? 'b': 'w';
+    },
+
+    lock: function() {
+        this.click_locked = true;
+        this.set('current_player', this.other_player());        
+    },
+
+    unlock: function() {
+        this.click_locked = false;
+        this.set('current_player', this.other_player());        
     },
 
     computer_turn: function() {
@@ -257,7 +288,8 @@ var Game = new Class({
                     this.goban.update("b", map_vertices_to_coords(response_json[1].data));
                 if (response_json[2])
                     this.goban.update("w", map_vertices_to_coords(response_json[2].data));
-                this.click_locked = false;
+
+                this.unlock();
             }).bind(this),
             onFailure: function(xhr) {
                 console.log(xhr.status, xhr.statusText, xhr.responseText);
@@ -289,12 +321,29 @@ function init() {
         id: 'game-inspector',
         items: [
             {
+                id: 'komi',
+                title: 'Komi',
+                enabled: false,
+            },
+            {
                 id: 'current_player',
-                title: 'Your color',
-                description: 'Your fucking color',
+                title: 'Current player',
+                description: 'What color is currently playing',
+                enabled: false,
+            },
+            {
+                id: 'captured_w',
+                title: 'Captured white',
+                enabled: false,
+            },
+            {
+                id: 'captured_b',
+                title: 'Captured black',
+                enabled: false,
             }
         ]
     });
+    $('controls-container').grab(game_inspector.el);
 }
 
 window.addEvent('domready', init);

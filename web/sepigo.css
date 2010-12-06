@@ -67,3 +67,13 @@ body {
 .w {
     background-image: url("images/w.png");
 }
+
+#goban-container {
+    width: 600px;
+    float: left;
+}
+
+#controls-container {
+    width: 50px;
+    float: left;
+}

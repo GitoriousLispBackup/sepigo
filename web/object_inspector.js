@@ -70,6 +70,7 @@ var ObjectInspector = new Class({
     },
 
     update: function() {
+        console.log('update inspector');
         this.el.set('html', '');
 
         if (this.model === null || ! $defined(this.model) ) {
@@ -144,13 +145,16 @@ var ObjectInspector = new Class({
                 
                 nameContainer.grab(nameLabel);
                 valueContainer.grab(valueInput);
+
+                if ($defined(item.enabled) && !item.enabled) {
+                    valueInput.set('disabled', 'disabled');
+                }
+
                 list.grab(nameContainer);
                 list.grab(valueContainer);
             }, this);
             form.grab(list)
             this.el.grab(form);
-            this.el.set('html', "foo");
-            console.log(this.el);
         }
     }
 });
