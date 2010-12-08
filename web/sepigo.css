@@ -77,3 +77,7 @@ body {
     width: 50px;
     float: left;
 }
+
+#spinner {
+    display: none;
+}

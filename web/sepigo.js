@@ -266,12 +266,14 @@ var Game = new Class({
 
     lock: function() {
         this.click_locked = true;
-        this.set('current_player', this.other_player());        
+        this.set('current_player', this.other_player());
+        $('spinner').setProperty('style', 'display: block');
     },
 
     unlock: function() {
         this.click_locked = false;
-        this.set('current_player', this.other_player());        
+        this.set('current_player', this.other_player());
+        $('spinner').setProperty('style', 'display: none');
     },
 
     computer_turn: function() {
