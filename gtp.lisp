@@ -141,9 +141,16 @@
                    :vertex (make-gtp-vertex-from-string (format nil "~{~a~^ ~}" (rest tokens))))))
 
 (defun open-gtp-stream ()
+  #+sbcl
   (let* ((process (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil))
          (in (sb-ext:process-input process))
          (out (sb-ext:process-output process)))
+    (format t "~a ~a" in out)
+    (values in out))
+  #+ccl
+  (let* ((process (ccl:run-program "gnugo" '("--mode=gtp" "--level=0") :input :stream :output :stream :wait nil))
+         (in (ccl:external-process-input-stream process))
+         (out (ccl:external-process-output-stream process)))
     (format t "~a ~a" in out)
     (values in out)))
 

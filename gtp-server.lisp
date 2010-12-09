@@ -91,4 +91,7 @@
 
 (defun toplevel ()
   (start 8080)
-  (sb-thread:join-thread (first (sb-thread:list-all-threads))))
+#+sbcl
+(sb-thread:join-thread (first (sb-thread:list-all-threads)))
+#+ccl
+(mapc #'(lambda (p) (ccl:join-process p)) (ccl:all-processes)))
