@@ -1,5 +1,14 @@
 (in-package gtp)
 
+(defparameter *allowed-command-names*
+  '("boardsize"
+    "clear_board"
+    "genmove"
+    "list_stones"
+    "captures"
+    "play"
+    "quit"))
+
 (defclass gtp-session ()
   ((in-stream
     :initarg :in-stream
@@ -160,6 +169,9 @@ inferior process"
   (issue-command session (make-gtp-command session "quit")))
 
 (defmethod issue-command ((session gtp-session) (command gtp-command))
+  (unless (find (command-name command) *allowed-command-names* :test #'equal)
+    (error "Command ~A not allowed" (command-name command)))
+
   (write-line (->string command)
               (in-stream session))
   (finish-output (in-stream session))
