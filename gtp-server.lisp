@@ -4,10 +4,12 @@
   (rename-package 'hunchentoot 'hunchentoot '(ht)))
 
 (defparameter *acceptor* nil)
+(defparameter *max-sessions* 100)       ; Not used yet
 
 (defun handle-ajax ()
   (setf (ht:content-type*) "text/plain")
 
+  ;; Create a new gtp session if necessary
   (unless (ht:session-value :gtp-session)
     (setf (ht:session-value :gtp-session)
           (gtp:make-gtp-session)))
@@ -96,6 +98,7 @@
          'ht:default-dispatcher)))
 
 (defun toplevel ()
+  (init)
   (start 8080)
 #+sbcl
   (sb-thread:join-thread (first (sb-thread:list-all-threads)))
