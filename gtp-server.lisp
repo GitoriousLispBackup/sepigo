@@ -1,4 +1,4 @@
-(in-package gtp)
+(in-package gtp-server)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (rename-package 'hunchentoot 'hunchentoot '(ht)))
@@ -10,24 +10,24 @@
 
   (unless (ht:session-value :gtp-session)
     (setf (ht:session-value :gtp-session)
-          (make-gtp-session)))
+          (gtp:make-gtp-session)))
 
   (if (ht:parameter "command-list")
       (let* ((command-list
               (json:decode-json-from-string (ht:parameter "command-list")))
              (gtp-session (ht:session-value :gtp-session))
              (gtp-command-list
-              (make-gtp-command-list gtp-session command-list))
+              (gtp:make-gtp-command-list gtp-session command-list))
              (response-list
-              (issue-gtp-command gtp-session gtp-command-list)))
+              (gtp:issue-command gtp-session gtp-command-list)))
         (json:encode-json-to-string response-list))
       (let* ((command-name (ht:parameter "command-name"))
              (gtp-session (ht:session-value :gtp-session))
              (args (ht:parameter "args"))
              (gtp-command
-              (make-gtp-command gtp-session command-name args))
+              (gtp:make-gtp-command gtp-session command-name args))
              (response
-              (issue-gtp-command gtp-session gtp-command))
+              (gtp:issue-command gtp-session gtp-command))
              )
         (json:encode-json-to-string response)
         )
@@ -55,31 +55,37 @@
                    (:tr
                     (:td (cl-who:esc (ht:session-user-agent (cdr l))))
                     (:td (cl-who:esc (ht:session-remote-addr (cdr l))))
-                    (:td (cl-who:esc (write-to-string (id (ht:session-value :gtp-session (cdr l)))))))))
+                    (:td (cl-who:esc (write-to-string (gtp:id (ht:session-value :gtp-session (cdr l)))))))))
               (ht:session-db *acceptor*))))))))
 
 (defun reset ()
+"Reset a web session"
   (ht:remove-session ht:*session*)
   (ht:redirect "/sepigo/sepigo.html"))
 
-(defun start (port)
+(defun start (&optional (port 8080))
   (setf *acceptor* (make-instance 'ht:acceptor :port port))
   (ht:start *acceptor*))
 
 (defun stop ()
-  (reset)
+  (ht:reset-sessions *acceptor*)
   (ht:stop *acceptor*))
+
+(defun restart* ()
+  (cond
+    (*acceptor*
+     (stop)
+     (start (ht:acceptor-port *acceptor*)))
+    (t (start))))
 
 (defun init ()
   (setf ht:*show-lisp-errors-p* t
         ht:*catch-errors-p* nil)
 
+  ;; Quit 
   (setf ht:*session-removal-hook*
-        (lambda (session)
-          (if session
-              (issue-gtp-command
-               (ht:session-value :gtp-session session)
-               (make-gtp-command (ht:session-value :gtp-session session) "quit")))))
+        #'(lambda (session)
+            (gtp:close-session (ht:session-value :gtp-session session))))
 
   ;; Setup *dispatch-table*
   (setf ht:*dispatch-table*
@@ -92,6 +98,6 @@
 (defun toplevel ()
   (start 8080)
 #+sbcl
-(sb-thread:join-thread (first (sb-thread:list-all-threads)))
+  (sb-thread:join-thread (first (sb-thread:list-all-threads)))
 #+ccl
-(mapc #'(lambda (p) (ccl:join-process p)) (ccl:all-processes)))
+  (mapc #'(lambda (p) (ccl:join-process p)) (ccl:all-processes)))

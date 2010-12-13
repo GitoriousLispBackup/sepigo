@@ -1,4 +1,4 @@
-(defsystem :sepigo
+(defsystem :gtp-server
   :version "0.1"
   :depends-on (:cl-utilities :hunchentoot :cl-json :cl-who)
   :components

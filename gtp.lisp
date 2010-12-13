@@ -154,7 +154,12 @@
     (format t "~a ~a" in out)
     (values in out)))
 
-(defmethod issue-gtp-command ((session gtp-session) (command gtp-command))
+(defmethod close-session ((session gtp-session))
+  "Close the gtp-session and release all associated resources like the
+inferior process"
+  (issue-command session (make-gtp-command session "quit")))
+
+(defmethod issue-command ((session gtp-session) (command gtp-command))
   (write-line (->string command)
               (in-stream session))
   (finish-output (in-stream session))
@@ -170,8 +175,8 @@
     ;;   (error "Request and response ids not the same"))
     response))
 
-(defmethod issue-gtp-command ((session gtp-session) (command-list list))
+(defmethod issue-command ((session gtp-session) (command-list list))
   (mapcar #'(lambda (command)
-              (issue-gtp-command session
+              (issue-command session
                                  command))
           command-list))
