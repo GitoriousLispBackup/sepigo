@@ -1,44 +1,37 @@
-(in-package gtp)
+(in-package sepigo)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (rename-package 'hunchentoot 'hunchentoot '(ht)))
 
-(defparameter *acceptor* nil)
+(defparameter *sepigo-acceptor* nil)
 
-(defun handle-ajax ()
+(ht:define-easy-handler (handle-ajax :uri "/go") ()
   (setf (ht:content-type*) "text/plain")
 
   (unless (ht:session-value :gtp-session)
     (setf (ht:session-value :gtp-session)
-          (make-gtp-session)))
+          (gtp:make-gtp-session)))
 
   (if (ht:parameter "command-list")
       (let* ((command-list
               (json:decode-json-from-string (ht:parameter "command-list")))
              (gtp-session (ht:session-value :gtp-session))
              (gtp-command-list
-              (make-gtp-command-list gtp-session command-list))
+              (gtp:make-gtp-command-list gtp-session command-list))
              (response-list
-              (issue-gtp-command gtp-session gtp-command-list)))
+              (gtp:issue-gtp-command gtp-session gtp-command-list)))
         (json:encode-json-to-string response-list))
       (let* ((command-name (ht:parameter "command-name"))
              (gtp-session (ht:session-value :gtp-session))
              (args (ht:parameter "args"))
              (gtp-command
-              (make-gtp-command gtp-session command-name args))
+              (gtp:make-gtp-command gtp-session command-name args))
              (response
-              (issue-gtp-command gtp-session gtp-command))
-             )
-        (json:encode-json-to-string response)
-        )
-      ))
-  
+              (gtp:issue-gtp-command gtp-session gtp-command)))
+        (json:encode-json-to-string response))))
 
 (ht:define-easy-handler (reset-session :uri "/reset") ()
   (reset))
-
-(ht:define-easy-handler (root :uri "/") ()
-  (ht:redirect "/sepigo/sepigo.html"))
 
 (ht:define-easy-handler (stats :uri "/stats") ()
   (setf (ht:content-type*) "text/html")
@@ -55,20 +48,21 @@
                    (:tr
                     (:td (cl-who:esc (ht:session-user-agent (cdr l))))
                     (:td (cl-who:esc (ht:session-remote-addr (cdr l))))
-                    (:td (cl-who:esc (write-to-string (id (ht:session-value :gtp-session (cdr l)))))))))
-              (ht:session-db *acceptor*))))))))
+                    (:td (cl-who:esc (write-to-string (gtp:id (ht:session-value :gtp-session (cdr l)))))))))
+              (ht:session-db *sepigo-acceptor*))))))))
 
+;; Can only be called in the context of a request
 (defun reset ()
   (ht:remove-session ht:*session*)
-  (ht:redirect "/sepigo/sepigo.html"))
+  (ht:redirect "/"))
 
 (defun start (port)
-  (setf *acceptor* (make-instance 'ht:acceptor :port port))
-  (ht:start *acceptor*))
+  (setf *sepigo-acceptor*
+	(ht:start
+	 (make-instance 'ht:easy-acceptor :port port))))
 
 (defun stop ()
-  (reset)
-  (ht:stop *acceptor*))
+  (ht:stop *sepigo-acceptor*))
 
 (defun init ()
   (setf ht:*show-lisp-errors-p* t
@@ -77,18 +71,11 @@
   (setf ht:*session-removal-hook*
         (lambda (session)
           (if session
-              (issue-gtp-command
+              (gtp:issue-gtp-command
                (ht:session-value :gtp-session session)
-               (make-gtp-command (ht:session-value :gtp-session session) "quit")))))
+               (gtp:make-gtp-command (ht:session-value :gtp-session session) "quit")))))
 
-  ;; Setup *dispatch-table*
-  (setf ht:*dispatch-table*
-        (list
-         (ht:create-prefix-dispatcher "/go" #'handle-ajax)
-         (ht:create-folder-dispatcher-and-handler "/sepigo/" #p"/home/enigma/sync/src/sepigo/web/")
-         'ht:dispatch-easy-handlers
-         'ht:default-dispatcher)))
-
-(defun toplevel ()
-  (start 8080)
-  (sb-thread:join-thread (first (sb-thread:list-all-threads))))
+  (push (ht:create-static-file-dispatcher-and-handler "/" #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
+	ht:*dispatch-table*)
+  (push (ht:create-folder-dispatcher-and-handler "/web/" #p"/home/enigma/sync/src/sepigo/web/")
+	ht:*dispatch-table*))

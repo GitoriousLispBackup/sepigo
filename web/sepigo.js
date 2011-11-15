@@ -1,3 +1,5 @@
+var request_url = 'go';
+
 function char_to_int(c) {
     var c_code = c.toLowerCase().charCodeAt(0);
     var a_code = 'a'.charCodeAt(0);
@@ -36,7 +38,7 @@ function map_vertices_to_coords(vertices) {
 }
 
 function gtp_request(req, cb, t) {
-    new Request.JSON({url: '../go', onSuccess: function(response_json) {
+    new Request.JSON({url: request_url, onSuccess: function(response_json) {
         cb.call(t, response_json);
     }}).get(req);
 }
@@ -68,6 +70,7 @@ var Goban = new Class({
             set_stone(ev);
         }).bind(this));
 
+	// Build DOM for game board
         for (var row = 0; row < size; ++row) {
             var row_element = new Element('tr', {'id': 'row-'+row});
             row_element.inject(el);
@@ -142,7 +145,6 @@ var Game = new Class({
     Implements: [Events, Options, Chain, Model],
 
     options: {
-        size: 9,
         difficulty: 0,
         komi: 4.5,
         handicap: 0,
@@ -192,7 +194,7 @@ var Game = new Class({
             this.click_locked = true;
 
             var json_request = new Request.JSON({
-                url: '../go',
+                url: request_url,
                 onSuccess: (function(response_json) {
                     // Setting stone was successful procede
                     if (response_json[0].success) {
@@ -245,7 +247,7 @@ var Game = new Class({
 
     computer_turn: function() {
         new Request.JSON({
-            url: '../go',
+            url: request_url,
             onSuccess: (function(response_json) {
                 console.log(response_json);
                 var opponent_turn = 
@@ -263,17 +265,17 @@ var Game = new Class({
                 console.log(xhr.status, xhr.statusText, xhr.responseText);
             },
         }).get({'command-list': JSON.encode([{
-                'command-name': 'genmove',
-                'args': this.other_player()
-            },
-            {
-                'command-name': 'list_stones',
-                'args': this.options.current_player
-            },
-            {
-                'command-name': 'list_stones',
-                'args': this.other_player()
-        }])});
+	                                         'command-name': 'genmove',
+					         'args': this.other_player()
+					     },
+					     {
+						 'command-name': 'list_stones',
+						 'args': this.options.current_player
+					     },
+					     {
+						 'command-name': 'list_stones',
+						 'args': this.other_player()
+					     }])});
     }
 });
 

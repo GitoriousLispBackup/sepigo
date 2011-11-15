@@ -4,4 +4,4 @@
   :components
   ((:file "system")
    (:file "gtp" :depends-on ("system"))
-   (:file "gtp-server" :depends-on ("system" "gtp"))))
+   (:file "sepigo" :depends-on ("system" "gtp"))))

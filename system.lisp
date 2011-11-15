@@ -4,7 +4,11 @@
            #:make-gtp-session
            #:gtp-command
            #:make-gtp-command
-           #:start
-           #:stop
-           #:toplevel
-           ))
+	   #:issue-gtp-command
+	   #:make-gtp-command-list
+	   #:id))
+
+(defpackage sepigo
+  (:use :common-lisp)
+  (:export #:start
+	   #:stop))
