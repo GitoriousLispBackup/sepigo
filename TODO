@@ -1,0 +1,4 @@
++ switch to caveman webframework
++ port game request logic to command_loop
++ add some interface
++ make interface using jQuery mobile
