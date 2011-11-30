@@ -47,13 +47,6 @@
                         :arguments arguments)))
     command))
 
-(defmethod make-gtp-command-list ((session gtp-session) command-list)
-  (mapcar #'(lambda (command)
-              (make-gtp-command session
-                                (cdr (assoc :command-name command))
-                                (cdr (assoc :args command))))
-          command-list))
-
 (defmethod ->string ((command gtp-command))
   (concatenate 'string
                (write-to-string (id command))
@@ -162,9 +155,3 @@
     ;; (unless (eql (id session) (id response))
     ;;   (error "Request and response ids not the same"))
     response))
-
-(defmethod issue-gtp-command ((session gtp-session) (command-list list))
-  (mapcar #'(lambda (command)
-              (issue-gtp-command session
-                                 command))
-          command-list))

@@ -11,24 +11,14 @@
   (unless (ht:session-value :gtp-session)
     (setf (ht:session-value :gtp-session)
           (gtp:make-gtp-session)))
-
-  (if (ht:parameter "command-list")
-      (let* ((command-list
-              (json:decode-json-from-string (ht:parameter "command-list")))
-             (gtp-session (ht:session-value :gtp-session))
-             (gtp-command-list
-              (gtp:make-gtp-command-list gtp-session command-list))
-             (response-list
-              (gtp:issue-gtp-command gtp-session gtp-command-list)))
-        (json:encode-json-to-string response-list))
-      (let* ((command-name (ht:parameter "command-name"))
-             (gtp-session (ht:session-value :gtp-session))
-             (args (ht:parameter "args"))
-             (gtp-command
-              (gtp:make-gtp-command gtp-session command-name args))
-             (response
-              (gtp:issue-gtp-command gtp-session gtp-command)))
-        (json:encode-json-to-string response))))
+  (let* ((command-name (ht:parameter "command-name"))
+	 (gtp-session (ht:session-value :gtp-session))
+	 (args (ht:parameter "args"))
+	 (gtp-command
+	  (gtp:make-gtp-command gtp-session command-name args))
+	 (response
+	  (gtp:issue-gtp-command gtp-session gtp-command)))
+    (json:encode-json-to-string response)))
 
 (ht:define-easy-handler (reset-session :uri "/reset") ()
   (reset))
@@ -65,8 +55,8 @@
   (ht:stop *sepigo-acceptor*))
 
 (defun init ()
-  (setf ht:*show-lisp-errors-p* t
-        ht:*catch-errors-p* nil)
+  ;; (setf ht:*show-lisp-errors-p* t
+  ;;       ht:*catch-errors-p* nil)
 
   (setf ht:*session-removal-hook*
         (lambda (session)

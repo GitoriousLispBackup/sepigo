@@ -1,4 +1,7 @@
-+ switch to caveman webframework
-+ port game request logic to command_loop
-+ add some interface
-+ make interface using jQuery mobile
+* switch to caveman webframework
+* add some interface
+* make interface using jQuery mobile
+* Account
+** resume save
+** stats
+* PvP

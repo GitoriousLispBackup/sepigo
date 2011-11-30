@@ -9,8 +9,8 @@ function gtp_request(req, response_callback, tis) {
 	 onSuccess: function(response_json) {
 	                response_callback.call(tis, response_json);
 	            },
-	 onFailure: function() {
-	                console.error("Error from server");
+	 onFailure: function(response_json) {
+	                console.error("Server error: ", response_json);
 	            }
 	}
     ).get(req);
@@ -74,18 +74,18 @@ Game = new Class({
         this.options.size = this.goban.size
 
         // this.human_color = human_color;
-        this.click_locked = true;
+        this.lock_click();
 
         // Black always starts
         this.options.current_player = 'b';
 
         if (this.options.human_color === this.options.current_player) {
-            this.click_locked = false;
+	    this.unlock_click();
         }
 
         // this.init_handicap(handicap); TODO
 
-	this.command_loop_driver(this.init_state_machine);
+	this.command_loop_run(this.init_state_machine);
 
         goban.addEvent('click', this.click_handler.bind(this));
     },
@@ -93,86 +93,88 @@ Game = new Class({
     // This method is called when a click on a goban field is registered
     click_handler: function (row, col) {
         // To gnugo coords
-        ++row;
-        ++col;
-	
+	this.row = row+1;
+	this.col = col+1;
+
+        ++row; ++col;
+
         console.log("click event at: ", [row, col]);
 
+        // Prevent user from issuing more ajax requests
         if (this.click_locked) {
-            console.log("click locked");
+            console.log("click is locked, no action!");
             return;
         }
-        // Prevent user from issuing more ajax requests
-        this.click_locked = true;
+        this.lock_click();
 	
-        var json_request = new Request.JSON({
-            url: request_url,
-            onSuccess: (function(response_json) {
-                // Setting stone was successful procede
-                if (response_json[0].success) {
-                    var opponent_turn = 
-                        vertex_to_coords(response_json[1].data[0]);
-                    console.log("opponent played: ", opponent_turn);
-		    
-                    this.goban.clear();
-                    this.goban.update("b", map_vertices_to_coords(response_json[2].data));
-                    this.goban.update("w", map_vertices_to_coords(response_json[3].data));
-                } else {
-                    this.fireEvent("invalidTurn", row, col);
-                }
-                this.click_locked = false;
-            }).bind(this),
-            onFailure: function(xhr) {
-                console.log(xhr.status, xhr.statusText, xhr.responseText);
-            },
-            onException: function() {
-                alert("ex");
-            }
-        });
-
-        var row_char = int_to_char(row);
-        json_request.get({'command-list': JSON.encode([{
-            'command-name': 'play',
-            'args': this.options.current_player + ' ' + row_char + '' + col
-        },
-						       {
-							   'command-name': 'genmove',
-							   'args': this.other_player()
-						       },
-						       {
-							   'command-name': 'list_stones',
-							   'args': this.options.current_player
-						       },
-						       {
-							   'command-name': 'list_stones',
-							   'args': this.other_player()
-						       }])});
+	this.command_loop_run(this.play_state_machine);
+    },
+    
+    position: function() {
+    	return int_to_char(this.row) + this.col;
     },
 
-    command: function(cmd) {
-	console.log("Issued command: ", cmd);
-        gtp_request(cmd,
-		    function (response) {
-			switch (this.options.state) {
-			case 'init':
-			    if (response.success) {
-				this.options.state = 'size-setup';
-				this.command({'command-name': 'clear-board'});
-			    }
-			case 'size-setup':
-			    if (response.success) {
-				this.options.state = 'game-started';
-			    }
-			case 'game-started':
-			    return;
-			default:
-			    console.log("Error setting up goban: state =", this.options.state);
-			}
-		    }, this);
+    play_state_machine: function(current_state, response) {
+	// console.log("in state: ", current_state);
+	switch (current_state) {
+	case 'init':
+            var row_char = int_to_char(this.row);
+	    return ['played', {'command-name': 'play',
+			       'args': this.options.current_player + ' ' + row_char + '' + this.col}];
+	case 'played':
+	    if (response.success) {
+		console.log("SUCCESS: client played: ", this.position());
+		return ['genmoved', {'command-name': 'genmove',
+				     'args': this.other_player()}];
+	    } else {
+		console.log("FAIL: field taken, play again");
+		this.unlock_click();
+		return ['done', false];
+	    }
+	case 'genmoved':
+	    console.log(response);
+	    if (response.success) {
+		if (response.data[0] == "PASS") {
+		    console.log("SUCCESS: server passed");
+		    return ['pass', false];
+		} else {
+		    console.log("SUCCESS: server played: ", vertex_to_coords(response.data[0]));
+		    return ['stones_listed_client', {'command-name': 'list_stones',
+						     'args': this.options.current_player}];
+		}
+	    } else {
+		console.error("ALARM: genmove failed!");
+		return ['done', false];
+	    }
+	case 'stones_listed_client':
+	    if (response.success) {
+		console.log("SUCCESS: client stones received: ", response.data);
+		this.goban.clear();
+		this.goban.update("b", map_vertices_to_coords(response.data));
+		return ['stones_listed_server', {'command-name': 'list_stones',
+						 'args': this.other_player()}];
+	    } else {
+		console.error("ALARM: client list_stones failed!");
+		return ['done', false];
+	    }
+	case 'stones_listed_server':
+	    if (response.success) {
+		console.log("SUCCESS: server stones received: ", response.data);
+		this.goban.update("w", map_vertices_to_coords(response.data));
+		this.unlock_click();
+		return ['done', false];
+	    } else {
+		console.error("ALARM: server list_stones failed!");
+		return ['done', false];
+	    }
+	case 'pass':
+	    this.unlock_click();
+	    return ['done', false];
+	}
     },
 
     init_state_machine: function(current_state, response) {
-	console.log("in state: ", current_state);
+	// console.log("in state: ", current_state);
 	switch (current_state) {
 	case 'init':
 	    return ['boardsize_initialized',
@@ -181,11 +183,12 @@ Game = new Class({
 	    return ['board_cleared',
 		    {'command-name': 'clear_board'}];
 	case 'board_cleared':
+	    console.log("SUCCESS: Game initialized");
 	    return ['done', false];
 	}
     },
 
-    command_loop_driver: function(transition_lambda)  {
+    command_loop_run: function(transition_lambda)  {
 	[this.options.state, next_command] = transition_lambda.call(this, 'init', false);
 	this.command_loop(next_command, transition_lambda);
     },
@@ -200,17 +203,14 @@ Game = new Class({
     command_loop: function(initial_command, transition_lambda) {
     	gtp_request(initial_command,
 		    function(response) {
-			if (response.success) {
-			    var next_command;
-			    [this.options.state, next_command] = 
-				transition_lambda.call(this, this.options.state, response);
-			    if (this.options.state == "done") {
-				console.log("command_loop done");
-				return true;
-			    } else {
-				this.command_loop(next_command, transition_lambda);
-			    }
-                        }
+			var next_command;
+			[this.options.state, next_command] = 
+			    transition_lambda.call(this, this.options.state, response);
+			if (this.options.state == "done") {
+			    return true;
+			} else {
+			    this.command_loop(next_command, transition_lambda);
+			}
 		    },
 		    this);
     },
@@ -223,36 +223,13 @@ Game = new Class({
         return this.options.current_player == 'w' ? 'b': 'w';
     },
 
-    computer_turn: function() {
-        new Request.JSON({
-            url: request_url,
-            onSuccess: (function(response_json) {
-                console.log(response_json);
-                var opponent_turn = 
-                    vertex_to_coords(response_json[0].data[0]);
-                console.log("opponent played: ", opponent_turn);
+    lock_click: function() {
+	// console.log("click locked");
+	this.click_locked = true;
+    },
 
-                this.goban.clear();
-                if (response_json[1])
-                    this.goban.update("b", map_vertices_to_coords(response_json[1].data));
-                if (response_json[2])
-                    this.goban.update("w", map_vertices_to_coords(response_json[2].data));
-                this.click_locked = false;
-            }).bind(this),
-            onFailure: function(xhr) {
-                console.log(xhr.status, xhr.statusText, xhr.responseText);
-            },
-        }).get({'command-list': JSON.encode([{
-	                                         'command-name': 'genmove',
-					         'args': this.other_player()
-					     },
-					     {
-						 'command-name': 'list_stones',
-						 'args': this.options.current_player
-					     },
-					     {
-						 'command-name': 'list_stones',
-						 'args': this.other_player()
-					     }])});
+    unlock_click: function() {
+	// console.log("click unlocked");
+	this.click_locked = false;
     }
 });
