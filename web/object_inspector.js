@@ -44,13 +44,13 @@ var ObjectInspector = new Class({
             this.update();
         }).bind(this));
 
-        // if ($defined(this.model) && this.model !== null) {
-        //     this.inject_model_setters();
-        // }
+        if ($defined(this.model) && this.model !== null) {
+            this.inject_model_setters();
+        }
 
         this.set_model(model);
 
-        // this.update();
+        this.update();
     },
 
     set_model: function(model) {
@@ -149,8 +149,7 @@ var ObjectInspector = new Class({
             }, this);
             form.grab(list)
             this.el.grab(form);
-            this.el.set('html', "foo");
-            console.log(this.el);
+            console.log(this.el.get('html'));
         }
     }
 });

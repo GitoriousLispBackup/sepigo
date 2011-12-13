@@ -1,5 +1,19 @@
 request_url = 'go';
 
+function find_stone(a, el) {
+    for (var i = 0; i < a.length; ++i) {
+	if (a[i][0] === el[0] &&
+	    a[i][1] === el[1]) {
+	    return i
+	}
+    }
+    return -1;
+}
+
+Array.prototype.diff = function(a) {
+    return this.filter(function(i) {return !(find_stone(a, i) > -1);});
+};
+
 // req: gtp request hash
 // response_callback: gets called with the response hash
 // tis: this reference the callback will be bound to
@@ -23,25 +37,31 @@ function char_to_int(c) {
     var a_code = 'a'.charCodeAt(0);
     var i_code = 'i'.charCodeAt(0);
     if (c_code >= i_code) {
-        return (c_code-a_code);
+        return (c_code-a_code-1);
     } else {
-        return (c_code-a_code)+1;
+        return (c_code-a_code-1)+1;
     }
 }
 
 function int_to_char(i) {
     var a_code = 'a'.charCodeAt(0);
-    if (i >= 9) {
-        return String.fromCharCode(i+a_code);
+    if (i >= 8) {
+        return String.fromCharCode(i+1+a_code);
     } else {
-        return String.fromCharCode(i+a_code-1);
+        return String.fromCharCode(i+a_code);
     }
 }
 
-function vertex_to_coords(vertex) {
+function vertex_to_coord(vertex) {
     var row = char_to_int(vertex[0]);
     var col = parseInt(vertex.slice(1));
-    return [row, col];
+    return [row, col-1];
+}
+
+function coord_to_vertex(coord) {
+    var row_char = int_to_char(coord[0]);
+    var col = coord[1]+1;
+    return row_char+col;
 }
 
 function map_vertices_to_coords(vertices) {
@@ -51,7 +71,7 @@ function map_vertices_to_coords(vertices) {
     }
 
     return vertices.map(function(vertex) {
-        return vertex_to_coords(vertex);
+        return vertex_to_coord(vertex);
     });
 }
 
@@ -64,7 +84,9 @@ Game = new Class({
         handicap: 0,
         human_color: 'b',
         current_player: 'b',
-	state: 'init',
+	server_player: 'w',
+	client_player: 'b',
+	state: 'stopped',
     },
 
     initialize: function(goban, options) {
@@ -73,15 +95,8 @@ Game = new Class({
         this.setOptions(options);
         this.options.size = this.goban.size
 
-        // this.human_color = human_color;
-        this.lock_click();
-
         // Black always starts
         this.options.current_player = 'b';
-
-        if (this.options.human_color === this.options.current_player) {
-	    this.unlock_click();
-        }
 
         // this.init_handicap(handicap); TODO
 
@@ -93,10 +108,8 @@ Game = new Class({
     // This method is called when a click on a goban field is registered
     click_handler: function (row, col) {
         // To gnugo coords
-	this.row = row+1;
-	this.col = col+1;
-
-        ++row; ++col;
+	this.row = row;
+	this.col = col;
 
         console.log("click event at: ", [row, col]);
 
@@ -118,29 +131,31 @@ Game = new Class({
 	// console.log("in state: ", current_state);
 	switch (current_state) {
 	case 'init':
-            var row_char = int_to_char(this.row);
-	    return ['played', {'command-name': 'play',
-			       'args': this.options.current_player + ' ' + row_char + '' + this.col}];
-	case 'played':
+	    var vertex = coord_to_vertex([this.row, this.col]);
+	    return ['client_played', {'command-name': 'play',
+				      'args': this.options.current_player + ' ' + vertex}];
+	case 'client_played':
 	    if (response.success) {
-		console.log("SUCCESS: client played: ", this.position());
-		return ['genmoved', {'command-name': 'genmove',
-				     'args': this.other_player()}];
+		console.log("SUCCESS: client played: ", this.row, this.col);
+		this.fireEvent('client_played', [[this.row, this.col]]);
+		return ['stones_listed_server', {'command-name': 'list_stones',
+						 'args': this.options.server_player}];
 	    } else {
 		console.log("FAIL: field taken, play again");
 		this.unlock_click();
 		return ['done', false];
 	    }
-	case 'genmoved':
-	    console.log(response);
+	case 'server_played':
 	    if (response.success) {
 		if (response.data[0] == "PASS") {
 		    console.log("SUCCESS: server passed");
+		    this.fireEvent('server_passed');
 		    return ['pass', false];
 		} else {
-		    console.log("SUCCESS: server played: ", vertex_to_coords(response.data[0]));
+		    console.log("SUCCESS: server played: ", vertex_to_coord(response.data[0]));
+		    this.fireEvent('server_played', [vertex_to_coord(response.data[0])]);
 		    return ['stones_listed_client', {'command-name': 'list_stones',
-						     'args': this.options.current_player}];
+						     'args': this.options.client_player}];
 		}
 	    } else {
 		console.error("ALARM: genmove failed!");
@@ -149,9 +164,22 @@ Game = new Class({
 	case 'stones_listed_client':
 	    if (response.success) {
 		console.log("SUCCESS: client stones received: ", response.data);
-		this.goban.clear();
-		this.goban.update("b", map_vertices_to_coords(response.data));
-		return ['stones_listed_server', {'command-name': 'list_stones',
+
+		var old_client_stones = this.goban.get_stones(this.options.client_player);
+		var new_client_stones = map_vertices_to_coords(response.data);
+		var removed_client_stones = old_client_stones.diff(new_client_stones);
+		var added_client_stones = new_client_stones.diff(old_client_stones);
+		console.log("REM ", removed_client_stones);
+		console.log("ADD ", added_client_stones);
+		if (removed_client_stones.length > 0) {
+		    console.log("ALARM: client_stones_removed");
+		    this.fireEvent('client_stones_removed', [removed_client_stones]);
+		}
+		if (added_client_stones.length > 0) {
+		    this.fireEvent('client_stones_added', [added_client_stones]);
+		}
+
+		return ['done', {'command-name': 'list_stones',
 						 'args': this.other_player()}];
 	    } else {
 		console.error("ALARM: client list_stones failed!");
@@ -160,9 +188,20 @@ Game = new Class({
 	case 'stones_listed_server':
 	    if (response.success) {
 		console.log("SUCCESS: server stones received: ", response.data);
-		this.goban.update("w", map_vertices_to_coords(response.data));
-		this.unlock_click();
-		return ['done', false];
+
+		var old_server_stones = this.goban.get_stones(this.options.server_player);
+		var new_server_stones = map_vertices_to_coords(response.data);
+		var removed_server_stones = old_server_stones.diff(new_server_stones);
+		var added_server_stones = new_server_stones.diff(old_server_stones);
+		if (removed_server_stones.length > 0) {
+		    this.fireEvent('server_stones_removed', [removed_server_stones]);
+		}
+		if (added_server_stones.length > 0) {
+		    this.fireEvent('server_stones_added', [added_server_stones]);
+		}
+
+		return ['server_played', {'command-name': 'genmove',
+					  'args': this.options.server_player}];
 	    } else {
 		console.error("ALARM: server list_stones failed!");
 		return ['done', false];
@@ -183,7 +222,7 @@ Game = new Class({
 	    return ['board_cleared',
 		    {'command-name': 'clear_board'}];
 	case 'board_cleared':
-	    console.log("SUCCESS: Game initialized");
+	    // console.log("SUCCESS: Game initialized");
 	    return ['done', false];
 	}
     },

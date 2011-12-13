@@ -60,7 +60,7 @@ Goban = new Class({
         }
     },
 
-    put_stone: function(color, row, col) {
+    add_stone: function(color, row, col) {
         var td = document.id('cell-'+row+'-'+col);
         td.setProperty('class', color);
     },
@@ -72,12 +72,24 @@ Goban = new Class({
 
     get_stone: function(row, col) {
         var td = document.id('cell-'+row+'-'+col);
-        if (td.getChildren().length > 0) {
-            // lol
-            return td.getProperty('src').split('/')[1].split('.')[0];
+	var klass = td.getProperty('class');
+        if (klass === 'b' || klass === 'w') {
+            return klass;
         } else {
             return false;
         }
+    },
+
+    get_stones: function(color) {
+	var stones = new Array();
+	for (var row = 0; row < this.size; ++row) {
+	    for (var col = 0; col < this.size; ++col) {
+		if (this.get_stone(row, col) === color) {
+		    stones.unshift([row, col]);
+		}
+	    }
+	}
+	return stones;
     },
 
     clear: function() {
@@ -89,9 +101,15 @@ Goban = new Class({
         }
     },
 
-    update: function(color, stones) {
+    add_stones: function(color, stones) {
         stones.each(function (stone) {
-            this.put_stone(color, stone[0]-1, stone[1]-1);
+            this.add_stone(color, stone[0], stone[1]);
+        }, this);
+    },
+
+    remove_stones: function(stones) {
+        stones.each(function (stone) {
+            this.remove_stone(stone[0], stone[1]);
         }, this);
     }
 });

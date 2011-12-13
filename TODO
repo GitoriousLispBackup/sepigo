@@ -1,4 +1,5 @@
 * switch to caveman webframework
+* cl-json -> yason
 * add some interface
 * make interface using jQuery mobile
 * Account
