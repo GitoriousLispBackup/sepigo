@@ -51,10 +51,10 @@
   (ht:remove-session ht:*session*)
   (ht:redirect "/"))
 
-(defun start (port)
+(defun start (&optional port address)
   (setf *sepigo-acceptor*
 	(ht:start
-	 (make-instance 'ht:easy-acceptor :port port))))
+	 (make-instance 'ht:easy-acceptor :address (or address "83.133.178.40") :port (or port 8080)))))
 
 (defun stop ()
   (ht:stop *sepigo-acceptor*))

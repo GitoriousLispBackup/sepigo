@@ -8,8 +8,8 @@ Goban = new Class({
 
         // register click callback
         set_stone = (function (ev) {
-            ev.stopPropagation();
-            ev.preventDefault();
+            // ev.stopPropagation();
+            // ev.preventDefault();
             
             var id = document.id(ev.target).id;
             if (id.split('-')[0] == 'cell') {
@@ -20,10 +20,7 @@ Goban = new Class({
                 this.fireEvent('click', [parseInt(row), parseInt(col)]);
             }
         }).bind(this);
-
-        el.addEvent('mousedown', (function(ev) {
-            set_stone(ev);
-        }).bind(this));
+	el.addEvent('mouseup', set_stone);
 
 	el.empty();
 

@@ -59,9 +59,14 @@ function vertex_to_coord(vertex) {
 }
 
 function coord_to_vertex(coord) {
-    var row_char = int_to_char(coord[0]);
-    var col = coord[1]+1;
-    return row_char+col;
+    // TODO: alarm Hack
+    if (coord[0] === 'pass') {
+	return 'pass';
+    } else {
+	var row_char = int_to_char(coord[0]);
+	var col = coord[1]+1;
+	return row_char+col;
+    }
 }
 
 function map_vertices_to_coords(vertices) {
@@ -107,11 +112,16 @@ Game = new Class({
 
     // This method is called when a click on a goban field is registered
     click_handler: function (row, col) {
- 	this.row = row;
-	this.col = col;
+	if (row === 'pass') {
+	    this.row = 'pass';
+	} else {
+ 	    this.row = row;
+	    this.col = col;
 
-        console.log("click event at: ", [row, col]);
+            console.log("click event at: ", [row, col]);
 
+	    this.fireEvent('click', [row, col]);
+	}
         // Prevent user from issuing more ajax requests
         if (this.click_locked) {
             console.log("click is locked, no action!");
@@ -207,7 +217,9 @@ Game = new Class({
 	    }
 	case 'pass':
 	    this.unlock_click();
-	    return ['done', false];
+	    return ['done', {'command-name': 'list_stones',
+			     'args': this.other_player()}];
+	    // return ['done', false];
 	}
     },
 
@@ -239,6 +251,11 @@ Game = new Class({
     //   next_state: the state to continue with
     //   command: a gtp command to be sent
     command_loop: function(initial_command, transition_lambda) {
+	if (!initial_command) {
+	    [this.options.state, next_command] = 
+		transition_lambda.call(this, this.options.state, {success: true});
+	    this.command_loop(next_command, transition_lambda);
+	}
     	gtp_request(initial_command,
 		    function(response) {
 			var next_command;
@@ -246,8 +263,7 @@ Game = new Class({
 			    transition_lambda.call(this, this.options.state, response);
 
 			// Statemachine is done or no command given
-			if (this.options.state == "done" ||
-			    next_command == false) {
+			if (this.options.state === 'done') {
 			    return true;
 			} else {
 			    this.command_loop(next_command, transition_lambda);
@@ -272,5 +288,9 @@ Game = new Class({
     unlock_click: function() {
 	// console.log("click unlocked");
 	this.click_locked = false;
+    },
+    
+    pass: function() {
+	this.click_handler('pass', 0);
     }
 });
