@@ -107,8 +107,7 @@ Game = new Class({
 
     // This method is called when a click on a goban field is registered
     click_handler: function (row, col) {
-        // To gnugo coords
-	this.row = row;
+ 	this.row = row;
 	this.col = col;
 
         console.log("click event at: ", [row, col]);
@@ -117,10 +116,10 @@ Game = new Class({
         if (this.click_locked) {
             console.log("click is locked, no action!");
             return;
-        }
-        this.lock_click();
-	
-	this.command_loop_run(this.play_state_machine);
+        } else {
+            this.lock_click();
+	    this.command_loop_run(this.play_state_machine);
+	}
     },
     
     position: function() {
@@ -245,7 +244,10 @@ Game = new Class({
 			var next_command;
 			[this.options.state, next_command] = 
 			    transition_lambda.call(this, this.options.state, response);
-			if (this.options.state == "done") {
+
+			// Statemachine is done or no command given
+			if (this.options.state == "done" ||
+			    next_command == false) {
 			    return true;
 			} else {
 			    this.command_loop(next_command, transition_lambda);

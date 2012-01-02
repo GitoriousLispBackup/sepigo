@@ -25,6 +25,8 @@ Goban = new Class({
             set_stone(ev);
         }).bind(this));
 
+	el.empty();
+
 	// Build DOM for game board
         for (var row = 0; row < size; ++row) {
             var row_element = new Element('tr', {'id': 'row-'+row});

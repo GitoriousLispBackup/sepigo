@@ -1,4 +1,7 @@
-function init() {
+var goban;
+var game;
+
+function setup() {
     goban = new Goban(document.id('goban'), 9);
     game = new Game(goban);
 
@@ -37,21 +40,25 @@ function init() {
     }, this);
 
     game.addEvent('server_passed', function(stones) {
-	goban = new Goban(document.id('goban'), 9);
-	game = new Game(goban);
+	game.unlock_click();
+	
+	setup();
 	alert("server passed!");
     }, this);
+}
 
-    var game_inspector = new ObjectInspector(game, {
-        id: 'game-inspector',
-        items: [
-            {
-                id: 'current_player',
-                title: 'Your color',
-                description: 'Your fucking color',
-            }
-        ]
-    });
+function init() {
+    setup();
+    // var game_inspector = new ObjectInspector(game, {
+    //     id: 'game-inspector',
+    //     items: [
+    //         {
+    //             id: 'current_player',
+    //             title: 'Your color',
+    //             description: 'Your fucking color',
+    //         }
+    //     ]
+    // });
 }
 
 window.addEvent('domready', init);

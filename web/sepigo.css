@@ -10,7 +10,7 @@ body {
     border: none;
     padding: 0;
     margin: -3;
-    height: 64px;
+    height: 23px;
 }
 
 #goban img {
@@ -20,50 +20,50 @@ body {
 }
 
 #goban div {
-    width: 64px;
-    height: 64px;
+    width: 23px;
+    height: 23px;
 }
 
 .top-left {
-    background-image: url("images/top-left.png");
+    background-image: url("images/top-left_small.png");
 }
 
 .top-right {
-    background-image: url("images/top-right.png");
+    background-image: url("images/top-right_small.png");
 }
 
 .bottom-left {
-    background-image: url("images/bottom-left.png");
+    background-image: url("images/bottom-left_small.png");
 }
 
 .bottom-right {
-    background-image: url("images/bottom-right.png");
+    background-image: url("images/bottom-right_small.png");
 }
 
 .top {
-    background-image: url("images/top.png");
+    background-image: url("images/top_small.png");
 }
 
 .bottom {
-    background-image: url("images/bottom.png");
+    background-image: url("images/bottom_small.png");
 }
 
 .left {
-    background-image: url("images/left.png");
+    background-image: url("images/left_small.png");
 }
 
 .right {
-    background-image: url("images/right.png");
+    background-image: url("images/right_small.png");
 }
 
 .center {
-    background-image: url("images/center.png");
+    background-image: url("images/center_small.png");
 }
 
 .b {
-    background-image: url("images/b.png");
+    background-image: url("images/b_small.png");
 }
 
 .w {
-    background-image: url("images/w.png");
+    background-image: url("images/w_small.png");
 }
