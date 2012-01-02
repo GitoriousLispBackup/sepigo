@@ -8,17 +8,22 @@
 (ht:define-easy-handler (handle-ajax :uri "/go") ()
   (setf (ht:content-type*) "text/plain")
 
+  ;; Create a new session if necessary
   (unless (ht:session-value :gtp-session)
     (setf (ht:session-value :gtp-session)
-          (gtp:make-gtp-session)))
+          (gtp:make-session)))
+
   (let* ((command-name (ht:parameter "command-name"))
-	 (gtp-session (ht:session-value :gtp-session))
-	 (args (ht:parameter "args"))
-	 (gtp-command
-	  (gtp:make-gtp-command gtp-session command-name args))
-	 (response
-	  (gtp:issue-gtp-command gtp-session gtp-command)))
-    (json:encode-json-to-string response)))
+	 (command-args (ht:parameter "args"))
+	 (session (ht:session-value :gtp-session))
+	 (command
+	  (gtp:make-command session
+			    command-name
+			    command-args)))
+    (if (gtp:command-valid-p command)
+	(json:encode-json-to-string
+	 (gtp:issue-command session command))
+	"Error: Invalid command")))
 
 (ht:define-easy-handler (reset-session :uri "/reset") ()
   (reset))
@@ -61,9 +66,9 @@
   (setf ht:*session-removal-hook*
         (lambda (session)
           (if session
-              (gtp:issue-gtp-command
+              (gtp:issue-command
                (ht:session-value :gtp-session session)
-               (gtp:make-gtp-command (ht:session-value :gtp-session session) "quit")))))
+               (gtp:make-command (ht:session-value :gtp-session session) "quit")))))
 
   (push (ht:create-static-file-dispatcher-and-handler "/" #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
 	ht:*dispatch-table*)

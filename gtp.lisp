@@ -1,6 +1,6 @@
 (in-package gtp)
 
-(defclass gtp-session ()
+(defclass session ()
   ((in-stream
     :initarg :in-stream
     :accessor in-stream)
@@ -19,16 +19,16 @@
    to the child process, a key that associates a gtp session with a
    web session and the current request/response id"))
 
-(defun make-gtp-session ()
+(defun make-session ()
   (multiple-value-bind (in out)
       (open-gtp-stream)
-    (let ((session (make-instance 'gtp-session
+    (let ((session (make-instance 'session
                                   :in-stream in
                                   :out-stream out
                                   :key (random 1024))))
       session)))
 
-(defclass gtp-command ()
+(defclass command ()
   ((id
     :initarg :id
     :accessor id)
@@ -39,23 +39,26 @@
     :initarg :arguments
     :accessor arguments)))
 
-(defmethod make-gtp-command ((session gtp-session) command-name &optional arguments)
+(defmethod make-command ((session session) command-name &optional arguments)
   (let ((command
-         (make-instance 'gtp-command
+         (make-instance 'command
                         :id (incf (id session))
                         :command-name command-name
                         :arguments arguments)))
     command))
 
-(defmethod ->string ((command gtp-command))
+(defmethod ->string ((command command))
   (concatenate 'string
                (write-to-string (id command))
                " "
                (command-name command)
                " "
                (arguments command)))
+
+(defmethod command-valid-p ((command command))
+  (if (command-name command) t))
   
-(defclass gtp-response ()
+(defclass response ()
   ((id
     :initarg :id
     :accessor id)
@@ -66,15 +69,15 @@
     :initarg :data
     :accessor data)))
 
-(defmethod make-gtp-response ((session gtp-session) id success data)
+(defmethod make-response ((session session) id success data)
   (let ((response
-         (make-instance 'gtp-response
+         (make-instance 'response
                         :id id
                         :success success
                         :data data)))
     response))
 
-(defmethod make-gtp-response-from-string ((session gtp-session) string)
+(defmethod make-response-from-string ((session session) string)
   (let* ((tokens (cl-utilities:split-sequence #\Space string :remove-empty-subseqs t))
          (token0 (first tokens))
          (success (cond ((eql (char token0 0) #\=)
@@ -85,9 +88,9 @@
                          (error "Malformed response: expected = or ?"))))
          (id (parse-integer (subseq token0 1)))
          (data (rest tokens)))
-    (make-gtp-response session id success data)))
+    (make-response session id success data)))
         
-(defclass gtp-vertex ()
+(defclass vertex ()
   ((row
     :initarg :row
     :accessor row)
@@ -95,28 +98,28 @@
     :initarg :col
     :accessor col)))
 
-(defmethod ->string ((vertex gtp-vertex))
+(defmethod ->string ((vertex vertex))
   (concatenate 'string
                (list (code-char (+ (1- (row vertex))
                                    (char-code #\a))))
                (write-to-string (col vertex))))
 
-(defun make-gtp-vertex-from-string (string)
-  (make-instance 'gtp-vertex
+(defun make-vertex-from-string (string)
+  (make-instance 'vertex
                  :row (1+ (- (char-code (aref string 0))
                              (char-code #\a)))
                  :col (parse-integer (subseq string 1))))
 
-(defclass gtp-move ()
+(defclass move ()
   ((color
     :initarg :color
     :accessor color)
    (vertex
     :initarg :vertex
     :accessor vertex
-    :type gtp-vertex)))
+    :type vertex)))
 
-(defmethod ->string ((move gtp-move))
+(defmethod ->string ((move move))
   (concatenate 'string
                (case (color move)
                  (:w "w")
@@ -124,23 +127,23 @@
                " "
                (->string (vertex move))))
 
-(defun make-gtp-move-from-string (string)
+(defun make-move-from-string (string)
   (let ((tokens (cl-utilities:split-sequence #\Space string :remove-empty-subseqs t)))
-    (make-instance 'gtp-move
+    (make-instance 'move
                    :color (case (string-downcase (first tokens))
                             (("white" "w") :w)
                             (("black" "b") :b)
                             (t :b))
-                   :vertex (make-gtp-vertex-from-string (format nil "~{~a~^ ~}" (rest tokens))))))
+                   :vertex (make-vertex-from-string (format nil "~{~a~^ ~}" (rest tokens))))))
 
 (defun open-gtp-stream ()
   (let* ((process (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil))
          (in (sb-ext:process-input process))
          (out (sb-ext:process-output process)))
     (format t "~a ~a" in out)
-    (values in out)))
+    (values in out process)))
 
-(defmethod issue-gtp-command ((session gtp-session) (command gtp-command))
+(defmethod issue-command ((session session) (command command))
   (write-line (->string command)
               (in-stream session))
   (finish-output (in-stream session))
@@ -150,8 +153,9 @@
              collecting line))
          (lines-in-one-str (format nil "~{~a~^~%~}" returned-lines))
          (response
-          (make-gtp-response-from-string session
+          (make-response-from-string session
                                          lines-in-one-str)))
     ;; (unless (eql (id session) (id response))
     ;;   (error "Request and response ids not the same"))
+    (format t "foo")
     response))

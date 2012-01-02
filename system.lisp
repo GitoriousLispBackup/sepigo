@@ -1,12 +1,13 @@
 (defpackage gtp
   (:use :common-lisp)
-  (:export #:gtp-session
-           #:make-gtp-session
-           #:gtp-command
-           #:make-gtp-command
-	   #:issue-gtp-command
-	   #:make-gtp-command-list
-	   #:id))
+  (:export #:session
+           #:make-session
+           #:command
+           #:make-command
+	   #:issue-command
+	   #:make-command-list
+	   #:id
+	   #:command-valid-p))
 
 (defpackage sepigo
   (:use :common-lisp)
