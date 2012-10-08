@@ -18,16 +18,18 @@ Array.prototype.diff = function(a) {
 // response_callback: gets called with the response hash
 // tis: this reference the callback will be bound to
 function gtp_request(req, response_callback, tis) {
-    new Request.JSON(
-	{url: request_url,
-	 onSuccess: function(response_json) {
-	                response_callback.call(tis, response_json);
-	            },
-	 onFailure: function(response_json) {
-	                console.error("Server error: ", response_json);
-	            }
-	}
-    ).get(req);
+    if (req) {
+        new Request.JSON(
+	    {url: request_url,
+	     onSuccess: function(response_json) {
+	         response_callback.call(tis, response_json);
+	     },
+	     onFailure: function(response_json) {
+	         console.error("Server error: ", response_json);
+	     }
+	    }
+        ).get(req);
+    }
 }
 
 // Transform between js and gnugo data
@@ -136,106 +138,96 @@ Game = new Class({
     	return int_to_char(this.row) + this.col;
     },
 
-    play_state_machine: function(current_state, response) {
-	// console.log("in state: ", current_state);
-	switch (current_state) {
-	case 'init':
-	    var vertex = coord_to_vertex([this.row, this.col]);
-	    return ['client_played', {'command-name': 'play',
-				      'args': this.options.current_player + ' ' + vertex}];
-	case 'client_played':
-	    if (response.success) {
-		console.log("SUCCESS: client played: ", this.row, this.col);
-		this.fireEvent('client_played', [[this.row, this.col]]);
-		return ['stones_listed_server', {'command-name': 'list_stones',
-						 'args': this.options.server_player}];
-	    } else {
-		console.log("FAIL: field taken, play again");
-		this.unlock_click();
-		return ['done', false];
-	    }
-	case 'server_played':
-	    if (response.success) {
-		if (response.data[0] == "PASS") {
-		    console.log("SUCCESS: server passed");
-		    this.fireEvent('server_passed');
-		    return ['pass', false];
-		} else {
-		    console.log("SUCCESS: server played: ", vertex_to_coord(response.data[0]));
-		    this.fireEvent('server_played', [vertex_to_coord(response.data[0])]);
-		    return ['stones_listed_client', {'command-name': 'list_stones',
-						     'args': this.options.client_player}];
-		}
-	    } else {
-		console.error("ALARM: genmove failed!");
-		return ['done', false];
-	    }
-	case 'stones_listed_client':
-	    if (response.success) {
-		console.log("SUCCESS: client stones received: ", response.data);
-
-		var old_client_stones = this.goban.get_stones(this.options.client_player);
-		var new_client_stones = map_vertices_to_coords(response.data);
-		var removed_client_stones = old_client_stones.diff(new_client_stones);
-		var added_client_stones = new_client_stones.diff(old_client_stones);
-		console.log("REM ", removed_client_stones);
-		console.log("ADD ", added_client_stones);
-		if (removed_client_stones.length > 0) {
-		    console.log("ALARM: client_stones_removed");
-		    this.fireEvent('client_stones_removed', [removed_client_stones]);
-		}
-		if (added_client_stones.length > 0) {
-		    this.fireEvent('client_stones_added', [added_client_stones]);
-		}
-
-		return ['done', {'command-name': 'list_stones',
-						 'args': this.other_player()}];
-	    } else {
-		console.error("ALARM: client list_stones failed!");
-		return ['done', false];
-	    }
-	case 'stones_listed_server':
-	    if (response.success) {
-		console.log("SUCCESS: server stones received: ", response.data);
-
-		var old_server_stones = this.goban.get_stones(this.options.server_player);
-		var new_server_stones = map_vertices_to_coords(response.data);
-		var removed_server_stones = old_server_stones.diff(new_server_stones);
-		var added_server_stones = new_server_stones.diff(old_server_stones);
-		if (removed_server_stones.length > 0) {
-		    this.fireEvent('server_stones_removed', [removed_server_stones]);
-		}
-		if (added_server_stones.length > 0) {
-		    this.fireEvent('server_stones_added', [added_server_stones]);
-		}
-
-		return ['server_played', {'command-name': 'genmove',
-					  'args': this.options.server_player}];
-	    } else {
-		console.error("ALARM: server list_stones failed!");
-		return ['done', false];
-	    }
-	case 'pass':
-	    this.unlock_click();
-	    return ['done', {'command-name': 'list_stones',
-			     'args': this.other_player()}];
-	    // return ['done', false];
+    update_stones: function(role, player, data) {
+	var old_stones = this.goban.get_stones(player);
+	var new_stones = map_vertices_to_coords(data);
+	var removed_stones = old_stones.diff(new_stones);
+	var added_stones = new_stones.diff(old_stones);
+	if (removed_stones.length > 0) {
+	    this.fireEvent(role + '_stones_removed', [removed_stones]);
+	}
+	if (added_stones.length > 0) {
+	    this.fireEvent(role + '_stones_added', [added_stones]);
 	}
     },
 
-    init_state_machine: function(current_state, response) {
-	// console.log("in state: ", current_state);
-	switch (current_state) {
-	case 'init':
-	    return ['boardsize_initialized',
-		    {'command-name': 'boardsize', 'args': this.options.size}];
-	case 'boardsize_initialized':
-	    return ['board_cleared',
-		    {'command-name': 'clear_board'}];
-	case 'board_cleared':
-	    // console.log("SUCCESS: Game initialized");
+    play_state_init: function(response) {
+	var vertex = coord_to_vertex([this.row, this.col]);
+	return ['client_played', {'command-name': 'play',
+				  'args': this.options.client_player + ' ' + vertex}];
+    },
+    play_state_client_played: function(response) {
+	if (response.success) {
+	    console.log("SUCCESS: client played: ", this.row, this.col);
+	    this.fireEvent('client_played', [[this.row, this.col]]);
+	    return ['stones_listed_client', {'command-name': 'list_stones',
+					     'args': this.options.client_player}];
+	} else {
+	    console.log("FAIL: field taken, play again");
+	    this.unlock_click();
+	    return ['done', false];
+	}        
+    },
+    play_state_stones_listed_client: function(response) {
+	if (response.success) {
+	    console.log("SUCCESS: client stones received: ", response.data);
+            this.update_stones('client', this.options.client_player, response.data);
+	    return ['server_played', {'command-name': 'genmove',
+				      'args': this.options.server_player}];
+	} else {
+	    console.error("ALARM: client list_stones failed!");
 	    return ['done', false];
 	}
+    },
+    play_state_server_played: function(response) {
+	if (response.success) {
+	    if (response.data[0] == "PASS") {
+		console.log("SUCCESS: server passed");
+		this.fireEvent('server_passed');
+		return ['pass', false];
+	    } else {
+		console.log("SUCCESS: server played: ", vertex_to_coord(response.data[0]));
+		this.fireEvent('server_played', [vertex_to_coord(response.data[0])]);
+		return ['stones_listed_server', {'command-name': 'list_stones',
+						 'args': this.options.server_player}];
+	    }
+	} else {
+	    console.error("ALARM: genmove failed!");
+	    return ['done', false];
+	}
+    },
+    play_state_stones_listed_server: function(response) {
+	if (response.success) {
+	    console.log("SUCCESS: server stones received: ", response.data);
+            this.update_stones('server', this.options.server_player, response.data);
+	} else {
+	    console.error("ALARM: server list_stones failed!");
+	}
+	return ['done', false];
+
+    },
+    play_state_pass: function(response) {
+	this.unlock_click();
+	return ['done', {'command-name': 'list_stones',
+			 'args': this.other_player()}];
+    },
+    play_state_machine: function(current_state, response) {
+        return this['play_state_'+current_state].call(this, response);
+    },
+
+    init_init: function(response) {
+	return ['boardsize_initialized',
+		{'command-name': 'boardsize', 'args': this.options.size}];
+    },
+    init_boardsize_initialized: function(response) {
+	return ['board_cleared',
+		{'command-name': 'clear_board'}];
+    },
+    init_board_cleared: function(response) {
+	return ['done', false];
+    },
+    init_state_machine: function(current_state, response) {
+        return this['init_'+current_state].call(this, response);
     },
 
     command_loop_run: function(transition_lambda)  {
