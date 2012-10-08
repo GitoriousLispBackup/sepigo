@@ -5,6 +5,17 @@
 
 (defparameter *sepigo-acceptor* nil)
 
+(defclass sepigo-acceptor (ht:easy-acceptor)
+  ((session-removal-hook
+    :initform nil
+    :initarg :session-removal-hook
+    :accessor session-removal-hook)))
+
+;; Remove
+(defmethod acceptor-remove-session ((acceptor sepigo-acceptor) (session ht:session))
+  (when (session-removal-hook acceptor)
+    (funcall (session-removal-hook acceptor) session)))
+
 (ht:define-easy-handler (handle-ajax :uri "/go") ()
   (setf (ht:content-type*) "text/plain")
 
@@ -54,22 +65,20 @@
 (defun start (&optional port address)
   (setf *sepigo-acceptor*
 	(ht:start
-	 (make-instance 'ht:easy-acceptor :address (or address "83.133.178.40") :port (or port 8080)))))
-
-(defun stop ()
-  (ht:stop *sepigo-acceptor*))
-
-(defun init ()
-  ;; (setf ht:*show-lisp-errors-p* t
-  ;;       ht:*catch-errors-p* nil)
-
-  (setf ht:*session-removal-hook*
+	 (make-instance 'sepigo-acceptor :address (or address "83.133.178.40") :port (or port 8080))))
+  (setf (session-removal-hook *sepigo-acceptor*)
         (lambda (session)
           (if session
               (gtp:issue-command
                (ht:session-value :gtp-session session)
-               (gtp:make-command (ht:session-value :gtp-session session) "quit")))))
+               (gtp:make-command (ht:session-value :gtp-session session) "quit"))))))
 
+(defun stop ()
+  (ht:stop *sepigo-acceptor*))
+
+(defun configure ()
+  ;; (setf ht:*show-lisp-errors-p* t
+  ;;       ht:*catch-errors-p* nil)
   (push (ht:create-static-file-dispatcher-and-handler "/" #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
 	ht:*dispatch-table*)
   (push (ht:create-folder-dispatcher-and-handler "/web/" #p"/home/enigma/sync/src/sepigo/web/")

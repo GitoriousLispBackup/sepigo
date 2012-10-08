@@ -12,4 +12,5 @@
 (defpackage sepigo
   (:use :common-lisp)
   (:export #:start
-	   #:stop))
+	   #:stop
+           #:configure))
