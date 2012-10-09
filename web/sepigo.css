@@ -67,3 +67,17 @@ body {
 .w {
     background-image: url("images/w_small.png");
 }
+
+#goban-container {
+    width: 600px;
+    float: left;
+}
+
+#controls-container {
+    width: 50px;
+    float: left;
+}
+
+#spinner {
+    display: none;
+}

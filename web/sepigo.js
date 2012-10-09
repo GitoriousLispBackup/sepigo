@@ -82,6 +82,7 @@ function setup() {
 	e.preventDefault();
 	game.pass();
     });
+    $('controls-container').grab(game_inspector.el);
 }
 
 function init() {

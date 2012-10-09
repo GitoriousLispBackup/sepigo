@@ -137,6 +137,7 @@
                    :vertex (make-vertex-from-string (format nil "~{~a~^ ~}" (rest tokens))))))
 
 (defun open-gtp-stream ()
+  #+sbcl
   (let* ((process (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil))
          (in (sb-ext:process-input process))
          (out (sb-ext:process-output process)))
