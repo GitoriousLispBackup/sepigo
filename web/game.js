@@ -33,7 +33,6 @@ function gtp_request(req, response_callback, tis) {
 }
 
 // Transform between js and gnugo data
-
 function char_to_int(c) {
     var c_code = c.toLowerCase().charCodeAt(0);
     var a_code = 'a'.charCodeAt(0);
@@ -106,8 +105,7 @@ Game = new Class({
         this.options.current_player = 'b';
 
         // this.init_handicap(handicap); TODO
-
-	this.command_loop_run(this.init_state_machine);
+	this.command_loop_run(this.init_init);
 
         goban.addEvent('click', this.click_handler.bind(this));
     },
@@ -130,7 +128,7 @@ Game = new Class({
             return;
         } else {
             this.lock_click();
-	    this.command_loop_run(this.play_state_machine);
+	    this.command_loop_run(this.play_state_init);
 	}
     },
     
@@ -151,29 +149,48 @@ Game = new Class({
 	}
     },
 
+    // Init state machine
+    init_init: function(response) {
+	return [this.init_boardsize_initialized,
+		{'command-name': 'boardsize', 'args': this.options.size}];
+    },
+    init_boardsize_initialized: function(response) {
+	return [this.init_board_cleared,
+		{'command-name': 'clear_board'}];
+    },
+    init_board_cleared: function(response) {
+	return ['done', false];
+    },
+
+    // Play state machine
     play_state_init: function(response) {
 	var vertex = coord_to_vertex([this.row, this.col]);
-	return ['client_played', {'command-name': 'play',
-				  'args': this.options.client_player + ' ' + vertex}];
+	return [this.play_state_client_played, {'command-name': 'play',
+				                'args': this.options.client_player + ' ' + vertex}];
     },
     play_state_client_played: function(response) {
 	if (response.success) {
 	    console.log("SUCCESS: client played: ", this.row, this.col);
 	    this.fireEvent('client_played', [[this.row, this.col]]);
-	    return ['stones_listed_client', {'command-name': 'list_stones',
-					     'args': this.options.client_player}];
+	    return [this.play_state_stones_listed_client, {'command-name': 'list_stones',
+					                   'args': this.options.client_player}];
 	} else {
 	    console.log("FAIL: field taken, play again");
 	    this.unlock_click();
 	    return ['done', false];
 	}        
     },
+
+    play_state_stones_both_listed: function(response) {
+        
+    },
+
     play_state_stones_listed_client: function(response) {
 	if (response.success) {
 	    console.log("SUCCESS: client stones received: ", response.data);
             this.update_stones('client', this.options.client_player, response.data);
-	    return ['server_played', {'command-name': 'genmove',
-				      'args': this.options.server_player}];
+	    return [this.play_state_server_played, {'command-name': 'genmove',
+				                    'args': this.options.server_player}];
 	} else {
 	    console.error("ALARM: client list_stones failed!");
 	    return ['done', false];
@@ -184,12 +201,12 @@ Game = new Class({
 	    if (response.data[0] == "PASS") {
 		console.log("SUCCESS: server passed");
 		this.fireEvent('server_passed');
-		return ['pass', false];
+		return [this.play_state_pass, false];
 	    } else {
 		console.log("SUCCESS: server played: ", vertex_to_coord(response.data[0]));
 		this.fireEvent('server_played', [vertex_to_coord(response.data[0])]);
-		return ['stones_listed_server', {'command-name': 'list_stones',
-						 'args': this.options.server_player}];
+		return [this.play_state_stones_listed_server, {'command-name': 'list_stones',
+						               'args': this.options.server_player}];
 	    }
 	} else {
 	    console.error("ALARM: genmove failed!");
@@ -211,28 +228,12 @@ Game = new Class({
 	return ['done', {'command-name': 'list_stones',
 			 'args': this.other_player()}];
     },
-    play_state_machine: function(current_state, response) {
-        return this['play_state_'+current_state].call(this, response);
-    },
 
-    init_init: function(response) {
-	return ['boardsize_initialized',
-		{'command-name': 'boardsize', 'args': this.options.size}];
-    },
-    init_boardsize_initialized: function(response) {
-	return ['board_cleared',
-		{'command-name': 'clear_board'}];
-    },
-    init_board_cleared: function(response) {
-	return ['done', false];
-    },
-    init_state_machine: function(current_state, response) {
-        return this['init_'+current_state].call(this, response);
-    },
 
-    command_loop_run: function(transition_lambda)  {
-	[this.options.state, next_command] = transition_lambda.call(this, 'init', false);
-	this.command_loop(next_command, transition_lambda);
+    command_loop_run: function(transition_function)  {
+        var state, next_command;
+	[next_transition_function, next_gtp_command] = transition_function.call(this, false);
+	this.command_loop(next_transition_function, next_gtp_command);
     },
 
     // Executes the state machine transition_lambda. This function
@@ -242,30 +243,22 @@ Game = new Class({
     // it returns an array of:
     //   next_state: the state to continue with
     //   command: a gtp command to be sent
-    command_loop: function(initial_command, transition_lambda) {
-	if (!initial_command) {
-	    [this.options.state, next_command] = 
-		transition_lambda.call(this, this.options.state, {success: true});
-	    this.command_loop(next_command, transition_lambda);
-	}
-    	gtp_request(initial_command,
+    command_loop: function(transition_function, gtp_command) {
+    	gtp_request(gtp_command,
 		    function(response) {
-			var next_command;
-			[this.options.state, next_command] = 
-			    transition_lambda.call(this, this.options.state, response);
+			var next_gtp_command;
+                        var next_state;
+			[next_transition_function, next_gtp_command] = 
+			    transition_function.call(this, response);
 
 			// Statemachine is done or no command given
-			if (this.options.state === 'done') {
+			if (next_transition_function === 'done') {
 			    return true;
 			} else {
-			    this.command_loop(next_command, transition_lambda);
+			    this.command_loop(next_transition_function, next_gtp_command);
 			}
 		    },
 		    this);
-    },
-
-    next_player: function() {
-        this.options.current_player = this.options.current_player == 'w' ? 'b': 'w';
     },
 
     other_player: function() {
@@ -273,12 +266,10 @@ Game = new Class({
     },
 
     lock_click: function() {
-	// console.log("click locked");
 	this.click_locked = true;
     },
 
     unlock_click: function() {
-	// console.log("click unlocked");
 	this.click_locked = false;
     },
     
