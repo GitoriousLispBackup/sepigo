@@ -8,8 +8,8 @@ body {
 
 #goban td {
     border: none;
-    padding: 0;
-    margin: -3;
+    padding: 0px;
+    margin: -3px;
     height: 23px;
 }
 

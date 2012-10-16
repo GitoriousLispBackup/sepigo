@@ -4,7 +4,7 @@ function find_stone(a, el) {
     for (var i = 0; i < a.length; ++i) {
 	if (a[i][0] === el[0] &&
 	    a[i][1] === el[1]) {
-	    return i
+	    return i;
 	}
     }
     return -1;
@@ -99,7 +99,7 @@ Game = new Class({
         this.goban = goban;
 
         this.setOptions(options);
-        this.options.size = this.goban.size
+        this.options.size = this.goban.size;
 
         // Black always starts
         this.options.current_player = 'b';
@@ -118,13 +118,13 @@ Game = new Class({
  	    this.row = row;
 	    this.col = col;
 
-            console.log("click event at: ", [row, col]);
+            console.info("click event at: ", [row, col]);
 
 	    this.fireEvent('click', [row, col]);
 	}
         // Prevent user from issuing more ajax requests
         if (this.click_locked) {
-            console.log("click is locked, no action!");
+            console.info("click is locked, no action!");
             return;
         } else {
             this.lock_click();
@@ -137,6 +137,7 @@ Game = new Class({
     },
 
     update_stones: function(role, player, data) {
+        console.info("update stones: ", role, player, data);
 	var old_stones = this.goban.get_stones(player);
 	var new_stones = map_vertices_to_coords(data);
 	var removed_stones = old_stones.diff(new_stones);
@@ -165,63 +166,83 @@ Game = new Class({
     // Play state machine
     play_state_init: function(response) {
 	var vertex = coord_to_vertex([this.row, this.col]);
-	return [this.play_state_client_played, {'command-name': 'play',
-				                'args': this.options.client_player + ' ' + vertex}];
+
+        this.client_played = false;
+        this.server_played = false;
+        this.half_listed = false;
+
+	return [this.play_state_client_played,
+                {'command-name': 'play',
+		 'args': this.options.client_player + ' ' + vertex}];
     },
     play_state_client_played: function(response) {
 	if (response.success) {
-	    console.log("SUCCESS: client played: ", this.row, this.col);
+	    console.info("SUCCESS: client played: ", this.row, this.col);
 	    this.fireEvent('client_played', [[this.row, this.col]]);
-	    return [this.play_state_stones_listed_client, {'command-name': 'list_stones',
-					                   'args': this.options.client_player}];
+
+            this.client_played = true;
+            this.server_played = false;
+
+	    return [this.play_state_stones_listed,
+                    {'command-name': 'list_stones',
+		     'args': this.options.client_player}];
 	} else {
-	    console.log("FAIL: field taken, play again");
+	    console.info("FAIL: field taken, play again");
 	    this.unlock_click();
 	    return ['done', false];
 	}        
     },
+    play_state_stones_listed: function(response) {
+        if (response.success) {
+            if (!this.half_listed) { // Client played
+                this.update_stones('client',
+                                   this.options.client_player,
+                                   response.data);
+                this.half_listed = true;
+	        return [this.play_state_stones_listed,
+                        {'command-name': 'list_stones',
+			 'args': this.options.server_player}];
+            } else if (this.half_listed) {
+                this.update_stones('server',
+                                   this.options.server_player,
+                                   response.data);
 
-    play_state_stones_both_listed: function(response) {
-        
-    },
+                if (this.client_played && !this.server_played) {
 
-    play_state_stones_listed_client: function(response) {
-	if (response.success) {
-	    console.log("SUCCESS: client stones received: ", response.data);
-            this.update_stones('client', this.options.client_player, response.data);
-	    return [this.play_state_server_played, {'command-name': 'genmove',
-				                    'args': this.options.server_player}];
-	} else {
-	    console.error("ALARM: client list_stones failed!");
-	    return ['done', false];
-	}
+	            return [this.play_state_server_played,
+                            {'command-name': 'genmove',
+	                     'args': this.options.server_player}];
+                } else if (this.server_played) {
+                    return ['done', false];
+                }
+            }
+        } else {
+            console.error("Could not list all stones!");
+            return ['done', false];
+        }
     },
     play_state_server_played: function(response) {
 	if (response.success) {
+            this.half_listed = false;
+
+            this.client_played = false;
+            this.server_played = true;
+
 	    if (response.data[0] == "PASS") {
-		console.log("SUCCESS: server passed");
+		console.info("SUCCESS: server passed");
 		this.fireEvent('server_passed');
 		return [this.play_state_pass, false];
 	    } else {
-		console.log("SUCCESS: server played: ", vertex_to_coord(response.data[0]));
+		console.info("SUCCESS: server played: ", vertex_to_coord(response.data[0]));
 		this.fireEvent('server_played', [vertex_to_coord(response.data[0])]);
-		return [this.play_state_stones_listed_server, {'command-name': 'list_stones',
-						               'args': this.options.server_player}];
+		return [this.play_state_stones_listed,
+                        {'command-name': 'list_stones',
+			 'args': this.options.client_player}];
 	    }
 	} else {
 	    console.error("ALARM: genmove failed!");
 	    return ['done', false];
 	}
-    },
-    play_state_stones_listed_server: function(response) {
-	if (response.success) {
-	    console.log("SUCCESS: server stones received: ", response.data);
-            this.update_stones('server', this.options.server_player, response.data);
-	} else {
-	    console.error("ALARM: server list_stones failed!");
-	}
-	return ['done', false];
-
     },
     play_state_pass: function(response) {
 	this.unlock_click();
