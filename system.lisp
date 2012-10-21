@@ -1,5 +1,5 @@
 (defpackage gtp
-  (:use :common-lisp)
+  (:use :common-lisp :cl-log)
   (:export #:session
            #:make-session
            #:command
@@ -10,7 +10,7 @@
 	   #:command-valid-p))
 
 (defpackage sepigo
-  (:use :common-lisp)
+  (:use :common-lisp :cl-log)
   (:export #:start
 	   #:stop
            #:configure))

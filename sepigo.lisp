@@ -63,18 +63,31 @@
   (ht:redirect "/"))
 
 (defun start (&optional port address)
-  (setf *sepigo-acceptor*
-	(ht:start
-	 (make-instance 'sepigo-acceptor :address (or address "83.133.178.40") :port (or port 8080))))
+  (setf (log-manager)
+        (make-instance 'log-manager
+                       :message-class 'formatted-message))
+  (start-messenger 'cl-log:text-stream-messenger
+                   :stream *standard-output*)
+  (let ((a (or address "127.0.0.1"))
+        (p (or port 8080)))
+    (setf *sepigo-acceptor*
+          (ht:start
+           (make-instance 'sepigo-acceptor :address a :port p)))
+    (log-message :info "Server started. Listening on ~a:~a" a p))
   (setf (session-removal-hook *sepigo-acceptor*)
         (lambda (session)
           (if session
               (gtp:issue-command
                (ht:session-value :gtp-session session)
-               (gtp:make-command (ht:session-value :gtp-session session) "quit"))))))
+               (gtp:make-command (ht:session-value :gtp-session session) "quit")))))
+  (mapcar #'(lambda (th) (sb-thread:join-thread th))
+          (sb-thread:list-all-threads)))
 
 (defun stop ()
-  (ht:stop *sepigo-acceptor*))
+  (ht:stop *sepigo-acceptor*)
+  (log-message :info "Server stopped (~a:~a)."
+               (ht:acceptor-address *sepigo-acceptor*)
+               (ht:acceptor-port *sepigo-acceptor*)))
 
 (defun configure ()
   ;; (setf ht:*show-lisp-errors-p* t
@@ -83,3 +96,5 @@
 	ht:*dispatch-table*)
   (push (ht:create-folder-dispatcher-and-handler "/web/" #p"/home/enigma/sync/src/sepigo/web/")
 	ht:*dispatch-table*))
+
+(configure)
