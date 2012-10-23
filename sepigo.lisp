@@ -11,15 +11,23 @@
     :initarg :session-removal-hook
     :accessor session-removal-hook)))
 
-;; Remove
-(defmethod acceptor-remove-session ((acceptor sepigo-acceptor) (session ht:session))
+;; Session removal by timeout or explicite call of ht:remove-session
+;; triggers the call of (session-removal-hook acceptor).
+(defmethod acceptor-remove-session ((acceptor sepigo-acceptor) session)
+  (log-message :error "session-removal-hook" (session-removal-hook acceptor))
   (when (session-removal-hook acceptor)
     (funcall (session-removal-hook acceptor) session)))
 
+;; Main resource for the js sepigo client
 (ht:define-easy-handler (handle-ajax :uri "/go") ()
   (setf (ht:content-type*) "text/plain")
 
-  ;; Create a new session if necessary
+  ;; Create a new HTTP session if necessary
+  (ht:start-session)
+  (setf (ht:session-max-time ht:*session*) ; Session expires after 15min
+        (* 60 15))
+  
+  ;; Create a new GTP session if necessary
   (unless (ht:session-value :gtp-session)
     (setf (ht:session-value :gtp-session)
           (gtp:make-session)))
@@ -59,24 +67,39 @@
 
 ;; Can only be called in the context of a request
 (defun reset ()
-  (log-message :sepigo "Seession reset!")
+  (log-message :sepigo "Session reset!")
   (ht:remove-session ht:*session*)
   (ht:redirect "/"))
 
 (defun start (&optional port address)
+  ;; Configure sepigo logging
   (setf (log-manager)
         (make-instance 'log-manager
                        :message-class 'formatted-message))
   (start-messenger 'text-file-messenger
                    :filename "sepigo.log")
+
+  ;; Open server
   (let ((a (or address "127.0.0.1"))
         (p (or port 8080)))
     (setf *sepigo-acceptor*
           (ht:start
-           (make-instance 'sepigo-acceptor :address a :port p
+           (make-instance 'sepigo-acceptor
+                          :address a
+                          :port p
                           :access-log-destination nil
                           :message-log-destination nil)))
     (log-message :sepigo "Server started. Listening on ~a:~a" a p))
+
+  ;; Configure session removal hook
+  (setf (session-removal-hook *sepigo-acceptor*)
+        (lambda (session)
+          (log-message :sepigo "Session removed")
+          (when session
+            (gtp:issue-command
+             (ht:session-value :gtp-session session)
+             (gtp:make-command (ht:session-value :gtp-session session) "quit")))))
+  (log-message :ALARM "~a" (session-removal-hook *sepigo-acceptor*))
   ;; (mapcar #'(lambda (th) (sb-thread:join-thread th))
   ;;         (sb-thread:list-all-threads))
   )
@@ -86,6 +109,10 @@
   (log-message :sepigo "Server stopped (~a:~a)."
                (ht:acceptor-address *sepigo-acceptor*)
                (ht:acceptor-port *sepigo-acceptor*)))
+
+(defun rstart ()
+  (stop)
+  (start))
 
 (defun configure ()
   ;; (setf ht:*show-lisp-errors-p* t

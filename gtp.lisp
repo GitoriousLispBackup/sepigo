@@ -20,6 +20,7 @@
    web session and the current request/response id"))
 
 (defun make-session ()
+  (log-message :gtp "GTP session created")
   (multiple-value-bind (in out)
       (open-gtp-stream)
     (let ((session (make-instance 'session

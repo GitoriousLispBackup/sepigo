@@ -13,4 +13,5 @@
   (:use :common-lisp :cl-log)
   (:export #:start
 	   #:stop
+           #:rstart
            #:configure))
