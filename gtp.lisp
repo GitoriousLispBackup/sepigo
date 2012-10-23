@@ -160,5 +160,4 @@
                                          lines-in-one-str)))
     ;; (unless (eql (id session) (id response))
     ;;   (error "Request and response ids not the same"))
-    (format t "foo")
     response))

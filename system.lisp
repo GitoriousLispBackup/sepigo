@@ -14,4 +14,5 @@
   (:export #:start
 	   #:stop
            #:rstart
-           #:configure))
+           #:configure
+           #:acceptor-remove-session))

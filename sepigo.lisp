@@ -14,9 +14,9 @@
 ;; Session removal by timeout or explicite call of ht:remove-session
 ;; triggers the call of (session-removal-hook acceptor).
 (defmethod acceptor-remove-session ((acceptor sepigo-acceptor) session)
-  (log-message :error "session-removal-hook" (session-removal-hook acceptor))
-  (when (session-removal-hook acceptor)
-    (funcall (session-removal-hook acceptor) session)))
+  (let ((hook (session-removal-hook acceptor)))
+    (when hook
+      (funcall hook session))))
 
 ;; Main resource for the js sepigo client
 (ht:define-easy-handler (handle-ajax :uri "/go") ()
@@ -25,8 +25,10 @@
   ;; Create a new HTTP session if necessary
   (ht:start-session)
   (setf (ht:session-max-time ht:*session*) ; Session expires after 15min
-        (* 60 15))
-  
+        ;; (* 60 15)
+        50
+        )
+
   ;; Create a new GTP session if necessary
   (unless (ht:session-value :gtp-session)
     (setf (ht:session-value :gtp-session)
@@ -95,11 +97,11 @@
   (setf (session-removal-hook *sepigo-acceptor*)
         (lambda (session)
           (log-message :sepigo "Session removed")
-          (when session
+#+nil          (when session
             (gtp:issue-command
              (ht:session-value :gtp-session session)
              (gtp:make-command (ht:session-value :gtp-session session) "quit")))))
-  (log-message :ALARM "~a" (session-removal-hook *sepigo-acceptor*))
+
   ;; (mapcar #'(lambda (th) (sb-thread:join-thread th))
   ;;         (sb-thread:list-all-threads))
   )
