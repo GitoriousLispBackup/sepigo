@@ -13,28 +13,32 @@ function player_indicator(who) {
 }
 
 function score_el(who) {
-    el = $('#'+who+'-score');
+    var el = $('#'+who+'-score');
     return el;
 }
 
 function add_score(who, stones) {
-    el = score_el(who);
+    var el = score_el(who);
     el.html(parseInt(el.html()) + stones);
     el.effect('highlight', {color: 'red'});
 }
 
 function reset_score() {
-    el = score_el('w');
-    el.html(0);
-    el = score_el('b');
-    el.html(0);
+    var el = score_el('client');
+
+    el.html("0");
+    el = score_el('server');
+    el.html("0");
 }
 
 function setup() {
     goban = new Goban(document.id('goban'), 9);
     game = new Game(goban);
 
-//    reset_score();
+    game.addEvent('init_sepigo', function() {
+        reset_score();
+        return false;
+    });
 
     game.addEvent('invalidTurn', function(row, col) {
         console.log("Invalid turn: %o", [row, col]);
@@ -58,7 +62,7 @@ function setup() {
     }, this);
 
     game.addEvent('server_stones_removed', function(stones) {
-	add_score('score', stones.length);
+	add_score('client', stones.length);
 	goban.remove_stones(stones);
     }, this);
     
@@ -85,13 +89,6 @@ function setup() {
 	setup();
 	alert("server passed!");
     }, this);
-
-    game.addEvent('init_sepigo', function() {
-        alert("FFO");
-        console.error("Init alarm");
-        reset_score();
-        return false;
-    });
 
     $('#pass-button').click(function(e) {
 	e.stopImmediatePropagation();

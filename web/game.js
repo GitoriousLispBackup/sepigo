@@ -92,7 +92,7 @@ Game = new Class({
         current_player: 'b',
 	server_player: 'w',
 	client_player: 'b',
-	state: 'stopped',
+	state: 'stopped'
     },
 
     initialize: function(goban, options) {
@@ -119,13 +119,13 @@ Game = new Class({
  	    this.row = row;
 	    this.col = col;
 
-            console.info("click event at: ", [row, col]);
+            console.info("Click event at: ", [row, col]);
 
 	    this.fireEvent('click', [row, col]);
 	}
         // Prevent user from issuing more ajax requests
         if (this.click_locked) {
-            console.info("click is locked, no action!");
+            console.info("Click is locked, no action!");
             return;
         } else {
             this.lock_click();
@@ -138,7 +138,7 @@ Game = new Class({
     },
 
     update_stones: function(role, player, data) {
-        console.info("update stones: ", role, player, data);
+        console.info("Update stones: ", role, player, data);
 	var old_stones = this.goban.get_stones(player);
 	var new_stones = map_vertices_to_coords(data);
 	var removed_stones = old_stones.diff(new_stones);
@@ -153,11 +153,11 @@ Game = new Class({
 
     // Init state machine
     init_init: function(response) {
-        this.fireEvent('init_sepigo');
 	return [this.init_boardsize_initialized,
 		{'command-name': 'boardsize', 'args': this.options.size}];
     },
     init_boardsize_initialized: function(response) {
+        this.fireEvent('init_sepigo');
 	return [this.init_board_cleared,
 		{'command-name': 'clear_board'}];
     },
@@ -179,7 +179,7 @@ Game = new Class({
     },
     play_state_client_played: function(response) {
 	if (response.success) {
-	    console.info("SUCCESS: client played: ", this.row, this.col);
+	    console.info("Client played: ", [this.row, this.col]);
 	    this.fireEvent('client_played', [[this.row, this.col]]);
 
             this.client_played = true;
@@ -189,7 +189,7 @@ Game = new Class({
                     {'command-name': 'list_stones',
 		     'args': this.options.client_player}];
 	} else {
-	    console.info("FAIL: field taken, play again");
+	    console.info("Field taken, play again");
 	    this.unlock_click();
 	    return ['done', false];
 	}        
@@ -217,11 +217,14 @@ Game = new Class({
                 } else if (this.server_played) {
                     return ['done', false];
                 }
+            } else {
+                return ['done', false];
             }
         } else {
             console.error("Could not list all stones!");
             return ['done', false];
         }
+        return ['done', false];
     },
     play_state_server_played: function(response) {
 	if (response.success) {
@@ -231,11 +234,11 @@ Game = new Class({
             this.server_played = true;
 
 	    if (response.data[0] == "PASS") {
-		console.info("SUCCESS: server passed");
+		console.info("Server passed");
 		this.fireEvent('server_passed');
 		return [this.play_state_pass, false];
 	    } else {
-		console.info("SUCCESS: server played: ", vertex_to_coord(response.data[0]));
+		console.info("Server played: ", vertex_to_coord(response.data[0]));
 		this.fireEvent('server_played', [vertex_to_coord(response.data[0])]);
 		return [this.play_state_stones_listed,
                         {'command-name': 'list_stones',

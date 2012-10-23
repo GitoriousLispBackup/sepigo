@@ -68,7 +68,7 @@
         (make-instance 'log-manager
                        :message-class 'formatted-message))
   (start-messenger 'text-file-messenger
-                   :filename "/tmp/sepigo.log")
+                   :filename "sepigo.log")
   (let ((a (or address "127.0.0.1"))
         (p (or port 8080)))
     (setf *sepigo-acceptor*
