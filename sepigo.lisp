@@ -59,6 +59,7 @@
 
 ;; Can only be called in the context of a request
 (defun reset ()
+  (log-message :sepigo "Seession reset!")
   (ht:remove-session ht:*session*)
   (ht:redirect "/"))
 
@@ -66,26 +67,23 @@
   (setf (log-manager)
         (make-instance 'log-manager
                        :message-class 'formatted-message))
-  (start-messenger 'cl-log:text-stream-messenger
-                   :stream *standard-output*)
+  (start-messenger 'text-file-messenger
+                   :filename "/tmp/sepigo.log")
   (let ((a (or address "127.0.0.1"))
         (p (or port 8080)))
     (setf *sepigo-acceptor*
           (ht:start
-           (make-instance 'sepigo-acceptor :address a :port p)))
-    (log-message :info "Server started. Listening on ~a:~a" a p))
-  (setf (session-removal-hook *sepigo-acceptor*)
-        (lambda (session)
-          (if session
-              (gtp:issue-command
-               (ht:session-value :gtp-session session)
-               (gtp:make-command (ht:session-value :gtp-session session) "quit")))))
-  (mapcar #'(lambda (th) (sb-thread:join-thread th))
-          (sb-thread:list-all-threads)))
+           (make-instance 'sepigo-acceptor :address a :port p
+                          :access-log-destination nil
+                          :message-log-destination nil)))
+    (log-message :sepigo "Server started. Listening on ~a:~a" a p))
+  ;; (mapcar #'(lambda (th) (sb-thread:join-thread th))
+  ;;         (sb-thread:list-all-threads))
+  )
 
 (defun stop ()
   (ht:stop *sepigo-acceptor*)
-  (log-message :info "Server stopped (~a:~a)."
+  (log-message :sepigo "Server stopped (~a:~a)."
                (ht:acceptor-address *sepigo-acceptor*)
                (ht:acceptor-port *sepigo-acceptor*)))
 

@@ -141,10 +141,11 @@
   (let* ((process (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil))
          (in (sb-ext:process-input process))
          (out (sb-ext:process-output process)))
-    (format t "~a ~a" in out)
+    (log-message :gtp "Opened gtp stream: IN ~a; OUT ~a" in out)
     (values in out process)))
 
 (defmethod issue-command ((session session) (command command))
+  (log-message :gtp "Command ~a issued in session" (command-name command))
   (write-line (->string command)
               (in-stream session))
   (finish-output (in-stream session))
