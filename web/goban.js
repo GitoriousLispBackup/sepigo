@@ -7,7 +7,7 @@ Goban = new Class({
         this.stones = {'w': [], 'b': []};
 
         // register click callback
-        set_stone = (function (ev) {
+        var set_stone = (function (ev) {
             // ev.stopPropagation();
             // ev.preventDefault();
             
@@ -50,10 +50,10 @@ Goban = new Class({
                     image = 'center';
                 }
 
-                td = new Element('td');
+                var td = new Element('td');
                 td.setProperty('class', image);
 
-                div = new Element('div', {'id': 'cell-'+row+'-'+col, 'class': 'transparent'});
+                var div = new Element('div', {'id': 'cell-'+row+'-'+col, 'class': 'transparent'});
                 td.grab(div).inject(row_element);
             }
         }

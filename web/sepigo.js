@@ -12,24 +12,33 @@ function player_indicator(who) {
     }
 }
 
-function add_score(who, stones) {
+function score_el(who) {
     el = $('#'+who+'-score');
+    return el;
+}
+
+function add_score(who, stones) {
+    el = score_el(who);
     el.html(parseInt(el.html()) + stones);
     el.effect('highlight', {color: 'red'});
+}
+
+function reset_score() {
+    el = score_el('w');
+    el.html(0);
+    el = score_el('b');
+    el.html(0);
 }
 
 function setup() {
     goban = new Goban(document.id('goban'), 9);
     game = new Game(goban);
 
+//    reset_score();
+
     game.addEvent('invalidTurn', function(row, col) {
         console.log("Invalid turn: %o", [row, col]);
     }, this);
-
-    // game.addEvent('click', function(position) {
-    // 	$('#player-slider').val('computer');
-    // 	$('#player-slider').slider('refresh');
-    // });
 
     game.addEvent('client_played', function(stone) {
 	// TODO: alarm hack
@@ -77,18 +86,22 @@ function setup() {
 	alert("server passed!");
     }, this);
 
+    game.addEvent('init_sepigo', function() {
+        alert("FFO");
+        console.error("Init alarm");
+        reset_score();
+        return false;
+    });
+
     $('#pass-button').click(function(e) {
 	e.stopImmediatePropagation();
 	e.preventDefault();
 	game.pass();
     });
+
+    $('#new-game-button').click(function(e) {
+        setup();
+    });
 }
 
-function init() {
-    setup();
-}
-
-window.addEvent('domready', init);
-
-$(document).ready(function () {
-})
+window.addEvent('domready', setup);

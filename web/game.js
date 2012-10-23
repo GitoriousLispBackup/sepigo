@@ -1,4 +1,4 @@
-request_url = 'go';
+var request_url = 'go';
 
 function find_stone(a, el) {
     for (var i = 0; i < a.length; ++i) {
@@ -107,6 +107,7 @@ Game = new Class({
         // this.init_handicap(handicap); TODO
 	this.command_loop_run(this.init_init);
 
+        goban.addEvent('touchstart', this.click_handler.bind(this));
         goban.addEvent('click', this.click_handler.bind(this));
     },
 
@@ -152,6 +153,7 @@ Game = new Class({
 
     // Init state machine
     init_init: function(response) {
+        this.fireEvent('init_sepigo');
 	return [this.init_boardsize_initialized,
 		{'command-name': 'boardsize', 'args': this.options.size}];
     },
@@ -276,7 +278,7 @@ Game = new Class({
 			if (next_transition_function === 'done') {
 			    return true;
 			} else {
-			    this.command_loop(next_transition_function, next_gtp_command);
+			    return this.command_loop(next_transition_function, next_gtp_command);
 			}
 		    },
 		    this);
