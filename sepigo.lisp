@@ -30,13 +30,13 @@
         )
 
   ;; Create a new GTP session if necessary
-  (unless (ht:session-value :gtp-session)
+  (unless (current-gtp-session)
     (setf (ht:session-value :gtp-session)
           (gtp:make-session)))
 
   (let* ((command-name (ht:parameter "command-name"))
 	 (command-args (ht:parameter "args"))
-	 (session (ht:session-value :gtp-session))
+	 (session (current-gtp-session))
 	 (command
 	  (gtp:make-command session
 			    command-name
@@ -67,11 +67,16 @@
                     (:td (cl-who:esc (write-to-string (gtp:id (ht:session-value :gtp-session (cdr l)))))))))
               (ht:session-db *sepigo-acceptor*))))))))
 
-;; Can only be called in the context of a request
+;; Manually reset the HTTP session
 (defun reset ()
   (log-message :sepigo "Session reset!")
+  (gtp:destroy-session (current-gtp-session))
   (ht:remove-session ht:*session*)
   (ht:redirect "/"))
+
+(defun current-gtp-session ()
+  "Return the current GTP session in the context of a query."
+  (ht:session-value :gtp-session))
 
 (defun start (&optional port address)
   ;; Configure sepigo logging
@@ -97,16 +102,19 @@
   (setf (session-removal-hook *sepigo-acceptor*)
         (lambda (session)
           (log-message :sepigo "Session removed")
-#+nil          (when session
+          (when session
             (gtp:issue-command
-             (ht:session-value :gtp-session session)
-             (gtp:make-command (ht:session-value :gtp-session session) "quit")))))
+             (current-gtp-session)
+             (gtp:make-command (current-gtp-session) "quit"))
+            (gtp:destroy-session (current-gtp-session)))))
 
   ;; (mapcar #'(lambda (th) (sb-thread:join-thread th))
   ;;         (sb-thread:list-all-threads))
   )
 
 (defun stop ()
+  (gtp:destroy-session (current-gtp-session))
+  (ht:remove-session ht:*session*)
   (ht:stop *sepigo-acceptor*)
   (log-message :sepigo "Server stopped (~a:~a)."
                (ht:acceptor-address *sepigo-acceptor*)

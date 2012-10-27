@@ -13,7 +13,10 @@
    (id 
     :initarg :id
     :accessor id
-    :initform 0))
+    :initform 0)
+   (process
+    :initarg :process
+    :accessor process))
   (:documentation
    "Handles the state of a gtp session: the input and output streams
    to the child process, a key that associates a gtp session with a
@@ -21,13 +24,20 @@
 
 (defun make-session ()
   (log-message :gtp "GTP session created")
-  (multiple-value-bind (in out)
+  (multiple-value-bind (in out process)
       (open-gtp-stream)
     (let ((session (make-instance 'session
                                   :in-stream in
                                   :out-stream out
+                                  :process process
                                   :key (random 1024))))
       session)))
+
+(defmethod destroy-session ((session session))
+  #-sbcl
+  (error "GTP session not implemented for this common lisp implementation.")
+  #+sbcl
+  (sb-ext:process-close (process session)))
 
 (defclass command ()
   ((id
@@ -138,6 +148,10 @@
                    :vertex (make-vertex-from-string (format nil "~{~a~^ ~}" (rest tokens))))))
 
 (defun open-gtp-stream ()
+  "Opens a gtp process and returns the input-, output-streams and the
+process itself."
+  #-sbcl
+  (error "GTP stream not implemented for this common lisp implementation.")
   #+sbcl
   (let* ((process (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil))
          (in (sb-ext:process-input process))
@@ -146,18 +160,23 @@
     (values in out process)))
 
 (defmethod issue-command ((session session) (command command))
+  "Sends command to the stream of session and returns a response
+object."
   (log-message :gtp "Command ~a issued in session" (command-name command))
   (write-line (->string command)
               (in-stream session))
   (finish-output (in-stream session))
   (let* ((returned-lines
-          (loop for line = (read-line (out-stream session) nil 'eof)
+          (loop
+             for line = (read-line (out-stream session) nil 'eof)
              until (or (equal line "") (eql line 'eof))
              collecting line))
-         (lines-in-one-str (format nil "~{~a~^~%~}" returned-lines))
+         (lines-in-one-str
+          (format nil "~{~a~^~%~}" returned-lines))
          (response
-          (make-response-from-string session
-                                         lines-in-one-str)))
-    ;; (unless (eql (id session) (id response))
-    ;;   (error "Request and response ids not the same"))
+          (make-response-from-string
+           session
+           lines-in-one-str)))
+    (unless (eql (id session) (id response))
+      (error "Request and response ids not the same"))
     response))

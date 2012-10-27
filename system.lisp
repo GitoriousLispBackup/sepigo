@@ -2,6 +2,7 @@
   (:use :common-lisp :cl-log)
   (:export #:session
            #:make-session
+           #:destroy-session
            #:command
            #:make-command
 	   #:issue-command
