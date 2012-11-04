@@ -14,6 +14,7 @@
 ;; Session removal by timeout or explicite call of ht:remove-session
 ;; triggers the call of (session-removal-hook acceptor).
 (defmethod acceptor-remove-session ((acceptor sepigo-acceptor) session)
+  (log-message :ALARM "ALARM")
   (let ((hook (session-removal-hook acceptor)))
     (when hook
       (funcall hook session))))
@@ -113,8 +114,6 @@
   )
 
 (defun stop ()
-  (gtp:destroy-session (current-gtp-session))
-  (ht:remove-session ht:*session*)
   (ht:stop *sepigo-acceptor*)
   (log-message :sepigo "Server stopped (~a:~a)."
                (ht:acceptor-address *sepigo-acceptor*)
@@ -127,9 +126,13 @@
 (defun configure ()
   ;; (setf ht:*show-lisp-errors-p* t
   ;;       ht:*catch-errors-p* nil)
-  (push (ht:create-static-file-dispatcher-and-handler "/" #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
+  (push (ht:create-static-file-dispatcher-and-handler
+         "/"
+         #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
 	ht:*dispatch-table*)
-  (push (ht:create-folder-dispatcher-and-handler "/web/" #p"/home/enigma/sync/src/sepigo/web/")
+  (push (ht:create-folder-dispatcher-and-handler
+         "/web/"
+         #p"/home/enigma/sync/src/sepigo/web/")
 	ht:*dispatch-table*))
 
 (configure)

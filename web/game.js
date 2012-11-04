@@ -257,8 +257,10 @@ Game = new Class({
 
 
     command_loop_run: function(transition_function)  {
-        var state, next_command;
-	[next_transition_function, next_gtp_command] = transition_function.call(this, false);
+        var next_transition_function, next_gtp_command;
+        var x = transition_function.call(this, false);
+	next_transition_function = x[0];
+        next_gtp_command = x[1]; 
 	this.command_loop(next_transition_function, next_gtp_command);
     },
 
@@ -272,11 +274,11 @@ Game = new Class({
     command_loop: function(transition_function, gtp_command) {
     	gtp_request(gtp_command,
 		    function(response) {
-			var next_gtp_command;
-                        var next_state;
-			[next_transition_function, next_gtp_command] = 
-			    transition_function.call(this, response);
-
+			var next_transition_function, next_gtp_command;
+                        var x = transition_function.call(this, response);
+                        next_transition_function = x[0];
+                        next_gtp_command = x[1];
+                        
 			// Statemachine is done or no command given
 			if (next_transition_function === 'done') {
 			    return true;
