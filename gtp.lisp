@@ -159,12 +159,19 @@ process itself."
     (log-message :gtp "Opened gtp stream: IN ~a; OUT ~a" in out)
     (values in out process)))
 
+(defmethod process-valid-p ((session session))
+  (and (open-stream-p (in-stream session))
+       (open-stream-p (out-stream session))))
+
 (defmethod issue-command ((session session) (command command))
   "Sends command to the stream of session and returns a response
 object."
+  (log-message :gtp "Gtp process status: ~a" (sb-ext:process-status (process session)))
+  
   (write-line (->string command)
               (in-stream session))
   (finish-output (in-stream session))
+        
   (let* ((returned-lines
           (loop
              for line = (read-line (out-stream session) nil 'eof)

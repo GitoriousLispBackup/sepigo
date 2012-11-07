@@ -8,7 +8,8 @@
 	   #:issue-command
 	   #:make-command-list
 	   #:id
-	   #:command-valid-p))
+	   #:command-valid-p
+           #:process-valid-p))
 
 (defpackage sepigo
   (:use :common-lisp :cl-log)
