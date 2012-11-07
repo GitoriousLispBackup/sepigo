@@ -13,11 +13,21 @@
 
 ;; Session removal by timeout or explicite call of ht:remove-session
 ;; triggers the call of (session-removal-hook acceptor).
-(defmethod acceptor-remove-session ((acceptor sepigo-acceptor) session)
-  (log-message :ALARM "ALARM")
+(defmethod ht:acceptor-remove-session ((acceptor sepigo-acceptor)
+                                       (session t))
   (let ((hook (session-removal-hook acceptor)))
-    (when hook
+    (when (and hook session)
       (funcall hook session))))
+
+(defun session-remove (ht-session)
+  "Remove a gtp session based on a ht session."
+  (log-message :sepigo "Ht and GTP sessions removed")
+  (let ((gtp-session (ht:session-value :gtp-session
+                                       ht-session)))
+    (when gtp-session
+      (gtp:issue-command gtp-session
+                         (gtp:make-command gtp-session "quit"))
+      (gtp:destroy-session gtp-session))))
 
 ;; Main resource for the js sepigo client
 (ht:define-easy-handler (handle-ajax :uri "/go") ()
@@ -25,12 +35,9 @@
 
   ;; Create a new HTTP session if necessary
   (ht:start-session)
-  (setf (ht:session-max-time ht:*session*) ; Session expires after 15min
-        ;; (* 60 15)
-        50
-        )
 
-  ;; Create a new GTP session if necessary
+  ;; Create a new GTP session (with its associated gnugo process) if
+  ;; necessary
   (unless (current-gtp-session)
     (setf (ht:session-value :gtp-session)
           (gtp:make-session)))
@@ -63,15 +70,21 @@
         (mapc #'(lambda (l)
                   (cl-who:htm
                    (:tr
-                    (:td (cl-who:esc (ht:session-user-agent (cdr l))))
-                    (:td (cl-who:esc (ht:session-remote-addr (cdr l))))
-                    (:td (cl-who:esc (write-to-string (gtp:id (ht:session-value :gtp-session (cdr l)))))))))
+                    (:td (cl-who:esc (ht:session-user-agent
+                                      (cdr l))))
+                    (:td (cl-who:esc (ht:session-remote-addr
+                                      (cdr l))))
+                    (:td (cl-who:esc (write-to-string
+                                      (gtp:id
+                                       (ht:session-value
+                                        :gtp-session (cdr l)))))))))
               (ht:session-db *sepigo-acceptor*))))))))
 
-;; Manually reset the HTTP session
+;; Manually reset the HTTP and GTP sessions
 (defun reset ()
   (log-message :sepigo "Session reset!")
-  (gtp:destroy-session (current-gtp-session))
+  (when (current-gtp-session)
+    (gtp:destroy-session (current-gtp-session)))
   (ht:remove-session ht:*session*)
   (ht:redirect "/"))
 
@@ -99,40 +112,36 @@
                           :message-log-destination nil)))
     (log-message :sepigo "Server started. Listening on ~a:~a" a p))
 
+  ;; Session expires after 15min
+  (setf ht:*session-max-time*
+        (* 60 15))
+
   ;; Configure session removal hook
   (setf (session-removal-hook *sepigo-acceptor*)
-        (lambda (session)
-          (log-message :sepigo "Session removed")
-          (when session
-            (gtp:issue-command
-             (current-gtp-session)
-             (gtp:make-command (current-gtp-session) "quit"))
-            (gtp:destroy-session (current-gtp-session)))))
-
+        #'session-remove)
+        
   ;; (mapcar #'(lambda (th) (sb-thread:join-thread th))
   ;;         (sb-thread:list-all-threads))
   )
 
 (defun stop ()
-  (ht:stop *sepigo-acceptor*)
   (log-message :sepigo "Server stopped (~a:~a)."
                (ht:acceptor-address *sepigo-acceptor*)
-               (ht:acceptor-port *sepigo-acceptor*)))
+               (ht:acceptor-port *sepigo-acceptor*))
+  (ht:stop *sepigo-acceptor*))
 
 (defun rstart ()
   (stop)
   (start))
 
 (defun configure ()
-  ;; (setf ht:*show-lisp-errors-p* t
-  ;;       ht:*catch-errors-p* nil)
-  (push (ht:create-static-file-dispatcher-and-handler
-         "/"
-         #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
-	ht:*dispatch-table*)
-  (push (ht:create-folder-dispatcher-and-handler
-         "/web/"
-         #p"/home/enigma/sync/src/sepigo/web/")
-	ht:*dispatch-table*))
+  (setf ht:*show-lisp-errors-p* t
+        ht:*catch-errors-p* nil)
+  (setf ht:*dispatch-table*
+        (list (ht:create-folder-dispatcher-and-handler "/web/"
+               #p"/home/enigma/sync/src/sepigo/web/")
+              (ht:create-static-file-dispatcher-and-handler "/"
+               #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
+              #'ht:dispatch-easy-handlers)))
 
 (configure)
