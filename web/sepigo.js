@@ -29,6 +29,10 @@ function reset_score() {
     el.html("0");
 }
 
+function message(str) {
+    $('#message').html(str);
+}
+
 function setup() {
     goban = new Goban(document.id('goban'), 9);
     game = new Game(goban);
@@ -38,8 +42,9 @@ function setup() {
         return false;
     });
 
-    game.addEvent('invalidTurn', function(row, col) {
-        console.log("Invalid turn: %o", [row, col]);
+    game.addEvent('invalid_turn', function(row, col) {
+        console.log("Invalid turn");
+        message("Invalid turn");
     }, this);
 
     game.addEvent('client_played', function(stone) {
@@ -73,24 +78,29 @@ function setup() {
     }, this);
 
     game.addEvent('client_passed', function(stones) {
+        message('You passed');
     }, this);
 
     game.addEvent('server_passed', function(stones) {
 	game.unlock_click();
+        message('Computer passed');
     }, this);
 
     $('#pass-button').click(function(e) {
-	e.stopImmediatePropagation();
-	e.preventDefault();
 	game.pass();
     });
 
     $('#resign-button').click(function(e) {
+        message('Resigned');
+        game.resign();
     });
 
     $('#new-game-button').click(function(e) {
+        message('New game');
         setup();
     });
+
+    message('Welcome to Sepigo');
 }
 
 window.addEvent('domready', setup);

@@ -193,6 +193,7 @@ Game = new Class({
                     {'command-name': 'list_stones',
 		     'args': this.options.client_player}];
 	} else {
+            this.fireEvent('invalid_turn', [this.row, this.col]);
 	    console.info("Field taken, play again");
 	    this.unlock_click();
 	    return ['done', false];
@@ -307,5 +308,10 @@ Game = new Class({
     
     pass: function() {
 	this.click_handler('pass', 0);
+    },
+
+    resign: function() {
+        gtp_request({"command-name": "play", "args": "b resign"},
+                   function (foo) {return null});
     }
 });

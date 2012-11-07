@@ -1,27 +1,32 @@
 body {
-    background-color: #8AB;
+    /* background-color: #8AB; */
 }
 
 #goban {
     border-collapse: collapse;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 #goban td {
     border: none;
     padding: 0px;
-    margin: -3px;
-    height: 23px;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 #goban img {
     border: 0;
     padding: 0;
-    margin: 0;   
+    margin: 0;
 }
 
 #goban div {
-    width: 23px;
-    height: 23px;
+    width: 16px;
+    height: 16px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 16px 16px;
 }
 
 .top-left {
@@ -69,8 +74,8 @@ body {
 }
 
 #goban-container {
-    width: 600px;
-    float: left;
+    /* width: 600px; */
+    /* float: left; */
 }
 
 #controls-container {
@@ -80,4 +85,10 @@ body {
 
 #spinner {
     display: none;
+}
+
+#message-container {
+    margin: 0;
+    padding: 2px 6px;
+    background-color: #faa;
 }
