@@ -162,7 +162,6 @@ process itself."
 (defmethod issue-command ((session session) (command command))
   "Sends command to the stream of session and returns a response
 object."
-  (log-message :gtp "Command ~a issued in session" (command-name command))
   (write-line (->string command)
               (in-stream session))
   (finish-output (in-stream session))
@@ -179,4 +178,7 @@ object."
            lines-in-one-str)))
     (unless (eql (id session) (id response))
       (error "Request and response ids not the same"))
+    (log-message :gtp "Command \"~a\" resulted in \"~a\""
+                 (->string command)
+                 lines-in-one-str)
     response))

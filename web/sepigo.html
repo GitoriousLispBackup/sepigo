@@ -4,10 +4,10 @@
     <title>sepigo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"> 
     <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.0/jquery.mobile-1.0.min.css" />
-    <script src="web/jquery.js" type="text/javascript"></script>
-    <script src="web/jquery.ui.js" type="text/javascript"></script>
-    <script src="web/jquery.mobile.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.2.0/jquery.mobile-1.2.0.min.css" />
+    <script src="http://code.jquery.com/jquery.min.js" type="text/javascript"></script>
+    <script src="http://code.jquery.com/ui/1.9.1/jquery-ui.min.js" type="text/javascript"></script>
+    <script src="http://code.jquery.com/mobile/1.2.0/jquery.mobile-1.2.0.min.js" type="text/javascript"></script>
 
     <link rel="stylesheet" type="text/css" href="web/sepigo.css" />
     <script src="web/mootools.js" type="text/javascript"></script>
@@ -25,23 +25,121 @@
 	    <img src="web/images/logo.png" />
 	  </div>
 	  <div class="ui-block-b">
-	    <em>You:</em>
+	    <em>You</em>
 	    <span id="client-score">0</span>
 	  </div>
 	  <div class="ui-block-c">
-	    <em>AI:</em>
+	    <em>Computer</em>
 	    <span id="server-score">0</span>
 	  </div>
 	</div>
       </div> 
-      <div id="goban-container" data-role="content">
+      <div id="goban-container" data-role="content" data-theme="b">
         <table id="goban"></table>
       </div>
+      
       <div data-role="footer" data-position="fixed">
-	<a id="new-game-button" href="#" data-role="button" data-icon="star">New game</a>
-	<a id="pass-button" href="#" data-role="button" data-icon="gear">Pass</a>
+	<a href="#new-game-dialog"
+           data-rel="popup"
+           data-role="button"
+           data-position-to="window"
+           data-icon="star">
+          New
+        </a>
+	<a href="#pass-dialog"
+           data-rel="popup"
+           data-role="button"
+           data-position-to="window"
+           data-icon="gear">
+          Pass
+        </a>
+        <a href="#resign-dialog"
+           data-rel="popup"
+           data-role="button"
+           data-position-to="window"
+           data-icon="arrow-d">
+          Resign
+        </a>
         <a id="reset-button" data-role="button" data-icon="refresh" href="/reset" rel="external">
-          Reset session</a>
+          &nbsp;</a>
+      </div>
+
+      <div id="new-game-dialog" data-role="popup" class="ui-corner-all">
+        <div data-role="content"
+             data-theme="d"
+             class="ui-corner-bottom ui-content">
+          <p class="ui-title">
+            Are you sure you want to start a new game?
+          </p>
+          <a href="#"
+             data-role="button"
+             data-inline="true"
+             data-rel="back"
+             data-theme="c">
+            Cancel
+          </a>
+          <a id="new-game-button"
+             href="#"
+             data-role="button"
+             data-inline="true"
+             data-rel="back"
+             data-transition="flow"
+             data-theme="b">
+            New game
+          </a>
+        </div>
+      </div>
+
+      <div id="pass-dialog" data-role="popup" class="ui-corner-all">
+        <div data-role="content"
+             data-theme="d"
+             class="ui-corner-bottom ui-content">
+          <p class="ui-title">
+            Are you sure you want to pass?
+          </p>
+          <a href="#"
+             data-role="button"
+             data-inline="true"
+             data-rel="back"
+             data-theme="c">
+            Cancel
+          </a>
+          <a id="pass-button"
+             href="#"
+             data-role="button"
+             data-inline="true"
+             data-rel="back"
+             data-transition="flow"
+             data-theme="b">
+            Pass
+          </a>
+        </div>
+      </div>
+
+      <div id="resign-dialog" data-role="popup" class="ui-corner-all">
+        <div data-role="content"
+             data-theme="d"
+             class="ui-corner-bottom ui-content">
+          <p class="ui-title">
+            Are you sure you want to resign?
+          </p>
+          <a href="#"
+             data-role="button"
+             data-inline="true"
+             data-rel="back"
+             data-theme="c">
+            Cancel
+          </a>
+          <a id="resign-button"
+             href="#"
+             data-role="button"
+             data-inline="true"
+             data-rel="back"
+             data-transition="flow"
+             data-theme="b">
+            Resign
+          </a>
+        </div>
       </div>
     </div>
   </body>

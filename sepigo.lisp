@@ -27,7 +27,8 @@
     (when gtp-session
       (gtp:issue-command gtp-session
                          (gtp:make-command gtp-session "quit"))
-      (gtp:destroy-session gtp-session))))
+      (gtp:destroy-session gtp-session)
+      (ht:remove-session ht-session))))
 
 ;; Main resource for the js sepigo client
 (ht:define-easy-handler (handle-ajax :uri "/go") ()

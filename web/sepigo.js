@@ -2,8 +2,6 @@ var goban;
 var game;
 
 function player_indicator(who) {
-    $('#player-slider').val(who);
-    $('#player-slider').slider('refresh');
     $.mobile.loadingMessage = "Thinking";
     if (who === 'computer') {
 	$.mobile.showPageLoadingMsg();
@@ -45,13 +43,8 @@ function setup() {
     }, this);
 
     game.addEvent('client_played', function(stone) {
-	// TODO: alarm hack
-	if (stone[0] === 'pass') {
-	    alert("passed");
-	} else  {
-    	    goban.add_stone(game.options.client_player, stone[0], stone[1]);
-	    game.lock_click();
-	}
+    	goban.add_stone(game.options.client_player, stone[0], stone[1]);
+	game.lock_click();
 	player_indicator('computer');
     }, this);
 
@@ -80,20 +73,19 @@ function setup() {
     }, this);
 
     game.addEvent('client_passed', function(stones) {
-	alert("client passed!");
     }, this);
 
     game.addEvent('server_passed', function(stones) {
 	game.unlock_click();
-	
-	setup();
-	alert("server passed!");
     }, this);
 
     $('#pass-button').click(function(e) {
 	e.stopImmediatePropagation();
 	e.preventDefault();
 	game.pass();
+    });
+
+    $('#resign-button').click(function(e) {
     });
 
     $('#new-game-button').click(function(e) {

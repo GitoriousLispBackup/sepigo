@@ -180,7 +180,11 @@ Game = new Class({
     play_state_client_played: function(response) {
 	if (response.success) {
 	    console.info("Client played: ", [this.row, this.col]);
-	    this.fireEvent('client_played', [[this.row, this.col]]);
+            if (this.row === 'pass') {
+                this.fireEvent('client_passed');
+            } else {
+	        this.fireEvent('client_played', [[this.row, this.col]]);
+            }
 
             this.client_played = true;
             this.server_played = false;
