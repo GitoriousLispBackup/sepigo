@@ -24,7 +24,8 @@
   (log-message :sepigo "Ht and GTP sessions removed")
   (let ((gtp-session (ht:session-value :gtp-session
                                        ht-session)))
-    (when gtp-session
+    (when (and (current-gtp-session)
+               (gtp:process-valid-p (current-gtp-session)))
       (gtp:issue-command gtp-session
                          (gtp:make-command gtp-session "quit"))
       (gtp:destroy-session gtp-session)
@@ -50,9 +51,10 @@
 	  (gtp:make-command session
 			    command-name
 			    command-args)))
-    (if (gtp:command-valid-p command)
-	(json:encode-json-to-string
-	 (gtp:issue-command session command))
+    (if (and (gtp:command-valid-p command)
+             (gtp:process-valid-p (current-gtp-session)))
+        (json:encode-json-to-string
+         (gtp:issue-command session command))
 	"Error: Invalid command")))
 
 (ht:define-easy-handler (reset-session :uri "/reset") ()
@@ -119,11 +121,7 @@
 
   ;; Configure session removal hook
   (setf (session-removal-hook *sepigo-acceptor*)
-        #'session-remove)
-        
-  ;; (mapcar #'(lambda (th) (sb-thread:join-thread th))
-  ;;         (sb-thread:list-all-threads))
-  )
+        #'session-remove))
 
 (defun stop ()
   (log-message :sepigo "Server stopped (~a:~a)."
