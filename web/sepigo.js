@@ -29,8 +29,16 @@ function reset_score() {
     el.html("0");
 }
 
-function message(str) {
-    $('#message').html(str);
+function message(str, type) {
+    var el = $('#message');
+    var cont = $('#message-container');
+    el.html(str);
+    if (type) {
+        cont.attr('class', type);
+        cont.show('slide')
+            .delay(1000)
+            .hide('slide');
+    }
 }
 
 function setup() {
@@ -44,7 +52,7 @@ function setup() {
 
     game.addEvent('invalid_turn', function(row, col) {
         console.log("Invalid turn");
-        message("Invalid turn");
+        message("Invalid turn", 'warn');
     }, this);
 
     game.addEvent('client_played', function(stone) {
@@ -78,12 +86,12 @@ function setup() {
     }, this);
 
     game.addEvent('client_passed', function(stones) {
-        message('You passed');
+        message('You passed', 'info');
     }, this);
 
     game.addEvent('server_passed', function(stones) {
 	game.unlock_click();
-        message('Computer passed');
+        message('Computer passed', 'info');
     }, this);
 
     $('#pass-button').click(function(e) {
@@ -91,16 +99,16 @@ function setup() {
     });
 
     $('#resign-button').click(function(e) {
-        message('Resigned');
+        message('Resigned', 'info');
         game.resign();
     });
 
     $('#new-game-button').click(function(e) {
-        message('New game');
+        message('New game', 'info');
         setup();
     });
 
-    message('Welcome to Sepigo');
+    message('Welcome to Sepigo', 'info');
 }
 
 window.addEvent('domready', setup);

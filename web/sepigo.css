@@ -1,5 +1,4 @@
 body {
-    /* background-color: #8AB; */
 }
 
 #goban {
@@ -90,5 +89,16 @@ body {
 #message-container {
     margin: 0;
     padding: 2px 6px;
-    background-color: #faa;
+}
+
+.info {
+    background-color: white;
+}
+
+.warn {
+    background-color: orange;
+}
+
+.error {
+    background-color: red;
 }
