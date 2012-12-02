@@ -35,10 +35,13 @@ function message(str, type) {
     el.html(str);
     if (type) {
         cont.attr('class', type);
-        cont.show('slide')
-            .delay(1000)
-            .hide('slide');
     }
+    cont.removeClass('hidden')
+        .delay(10000)
+        .queue(function(next) {
+           $(this).addClass('hidden');
+           next();
+         });
 }
 
 function setup() {

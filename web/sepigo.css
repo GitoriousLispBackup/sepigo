@@ -102,3 +102,7 @@ body {
 .error {
     background-color: red;
 }
+
+.hidden {
+    visibility: hidden;
+}
