@@ -140,7 +140,7 @@
         (list (ht:create-folder-dispatcher-and-handler "/web/"
                #p"/home/enigma/sync/src/sepigo/web/")
               (ht:create-static-file-dispatcher-and-handler "/"
-               #p"/home/enigma/sync/src/sepigo/web/sepigo.html")
+               #p"/home/enigma/sync/src/sepigo/web/index.html")
               #'ht:dispatch-easy-handlers)))
 
 (configure)

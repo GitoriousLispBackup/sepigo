@@ -1,4 +1,4 @@
-var request_url = 'go';
+var request_url = '/go';
 
 function find_stone(a, el) {
     for (var i = 0; i < a.length; ++i) {
