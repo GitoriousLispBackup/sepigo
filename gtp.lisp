@@ -23,7 +23,7 @@
    web session and the current request/response id"))
 
 (defun make-session ()
-  (log-message :gtp "GTP session created")
+  (log:info "GTP session created")
   (multiple-value-bind (in out process)
       (open-gtp-stream)
     (let ((session (make-instance 'session
@@ -34,8 +34,10 @@
       session)))
 
 (defmethod destroy-session ((session session))
-  #-sbcl
+  #-(or sbcl ccl)
   (error "GTP session not implemented for this common lisp implementation.")
+  #+ccl
+  (ccl:signal-external-process (process session) -9)
   #+sbcl
   (sb-ext:process-close (process session)))
 
@@ -150,13 +152,24 @@
 (defun open-gtp-stream ()
   "Opens a gtp process and returns the input-, output-streams and the
 process itself."
-  #-sbcl
+  #-(or sbcl ccl)
   (error "GTP stream not implemented for this common lisp implementation.")
-  #+sbcl
-  (let* ((process (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil))
-         (in (sb-ext:process-input process))
-         (out (sb-ext:process-output process)))
-    (log-message :gtp "Opened gtp stream: IN ~a; OUT ~a" in out)
+  (let* ((process
+          #+sbcl
+           (sb-ext:run-program "gnugo" '("--mode=gtp" "--level=0") :search t :input :stream :output :stream :wait nil)
+           #+ccl
+           (ccl:run-program "gnugo" '("--mode=gtp" "--level=0") :input :stream :output :stream :sharing :external :wait nil))
+         (in
+          #+sbcl
+          (sb-ext:process-input process)
+          #+ccl
+          (ccl:external-process-input-stream process))
+         (out
+          #+sbcl
+           (sb-ext:process-output process)
+          #+ccl
+          (ccl:external-process-output-stream process)))
+    (log:info "Opened gtp stream: IN ~a; OUT ~a" in out)
     (values in out process)))
 
 (defmethod process-valid-p ((session session))
@@ -166,7 +179,13 @@ process itself."
 (defmethod issue-command ((session session) (command command))
   "Sends command to the stream of session and returns a response
 object."
-  (log-message :gtp "Gtp process status: ~a" (sb-ext:process-status (process session)))
+  (log:info :gtp "Gtp process status: ~a"
+            #+sbcl
+            (sb-ext:process-status (process session))
+            #+ccl
+            (ccl:external-process-status (process session))
+            #-(or sbcl ccl)
+            "Not implemented")
   
   (write-line (->string command)
               (in-stream session))
@@ -185,7 +204,7 @@ object."
            lines-in-one-str)))
     (unless (eql (id session) (id response))
       (error "Request and response ids not the same"))
-    (log-message :gtp "Command \"~a\" resulted in \"~a\""
-                 (->string command)
-                 lines-in-one-str)
+    (log:info :gtp "Command \"~a\" resulted in \"~a\""
+              (->string command)
+              lines-in-one-str)
     response))

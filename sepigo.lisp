@@ -21,7 +21,7 @@
 
 (defun session-remove (ht-session)
   "Remove a gtp session based on a ht session."
-  (log-message :sepigo "Ht and GTP sessions removed")
+  (log:info "Ht and GTP sessions removed")
   (let ((gtp-session (ht:session-value :gtp-session
                                        ht-session)))
     (when (and (current-gtp-session)
@@ -85,7 +85,7 @@
 
 ;; Manually reset the HTTP and GTP sessions
 (defun reset ()
-  (log-message :sepigo "Session reset!")
+  (log:info "Session reset!")
   (when (current-gtp-session)
     (gtp:destroy-session (current-gtp-session)))
   (ht:remove-session ht:*session*)
@@ -97,12 +97,8 @@
 
 (defun start (&optional port address)
   ;; Configure sepigo logging
-  (setf (log-manager)
-        (make-instance 'log-manager
-                       :message-class 'formatted-message))
-  (start-messenger 'text-file-messenger
-                   :filename "sepigo.log")
-
+  (log:config :sane)
+  
   ;; Open server
   (let ((a (or address "127.0.0.1"))
         (p (or port 8080)))
@@ -113,7 +109,7 @@
                           :port p
                           :access-log-destination nil
                           :message-log-destination nil)))
-    (log-message :sepigo "Server started. Listening on ~a:~a" a p))
+    (log:info "Server started. Listening on ~a:~a" a p))
 
   ;; Session expires after 15min
   (setf ht:*session-max-time*
@@ -124,9 +120,9 @@
         #'session-remove))
 
 (defun stop ()
-  (log-message :sepigo "Server stopped (~a:~a)."
-               (ht:acceptor-address *sepigo-acceptor*)
-               (ht:acceptor-port *sepigo-acceptor*))
+  (log:info "Server stopped (~a:~a)."
+            (ht:acceptor-address *sepigo-acceptor*)
+            (ht:acceptor-port *sepigo-acceptor*))
   (ht:stop *sepigo-acceptor*))
 
 (defun rstart ()

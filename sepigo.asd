@@ -4,7 +4,7 @@
                :hunchentoot
                :cl-json
                :cl-who
-               :cl-log)
+               :log4cl)
   :components
   ((:file "system")
    (:file "gtp" :depends-on ("system"))
